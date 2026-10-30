@@ -86,7 +86,9 @@ export function loadConfig(env = process.env, secrets = {}) {
       maxConcurrentRuns: intFromEnv(env, "ROCKY_MAX_CONCURRENT_RUNS", 4, { max: 32 }),
       runTimeoutMs: intFromEnv(env, "ROCKY_RUN_TIMEOUT_MS", 60 * 60_000, { min: 10_000 }),
       permissionTimeoutMs,
-      subprocessEnvScrub: boolFromEnv(env, "ROCKY_SUBPROCESS_ENV_SCRUB", true),
+      // Needs bubblewrap with user namespaces, which standard container
+      // runtimes block; off by default (managed deny rules cover the gap).
+      subprocessEnvScrub: boolFromEnv(env, "ROCKY_SUBPROCESS_ENV_SCRUB", false),
       disallowedTools: env.ROCKY_DISALLOWED_TOOLS === undefined ? DEFAULT_DISALLOWED_TOOLS : parseList(env.ROCKY_DISALLOWED_TOOLS),
       permissionHelper: env.ROCKY_PERMISSION_HELPER || join(HERE, "mcp-permission.mjs"),
       nodeBin: process.execPath,

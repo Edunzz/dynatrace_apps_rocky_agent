@@ -93,7 +93,7 @@ while IFS= read -r name; do
   rm -rf "${CLAUDE_CONFIG_DIR:?}/skills/$name"
   cp -R "$ROCKY_HOME/skills/$name" "$CLAUDE_CONFIG_DIR/skills/$name"
 done < <(jq -r '.official.skills[], .custom[].name, .drawio.name' "$ROCKY_SKILLS_MANIFEST")
-log info "skills installed: $(jq -r '[.official.skills | length, (.custom | length), 1] | add' "$ROCKY_SKILLS_MANIFEST")"
+log info "skills installed: $(jq -r '[(.official.skills | length), (.custom | length), 1] | add' "$ROCKY_SKILLS_MANIFEST")"
 
 # --- Claude Code --------------------------------------------------------------------
 node "$ROCKY_HOME/scripts/prepare-claude.mjs"

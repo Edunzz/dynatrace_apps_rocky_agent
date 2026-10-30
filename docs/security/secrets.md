@@ -15,7 +15,7 @@
 |---|---|---|
 | `DT_PLATFORM_TOKEN` | dtctl inside the runtime | Dedicated service user; never reaches the app or browser |
 | `ROCKY_SERVER_PASSWORD` | Rocky gateway | 16+ characters; the app stores it as an owner-only secret or reads it from the Credential Vault. Handed to the gateway in a file it deletes at startup; never reaches Claude Code |
-| Claude credential (`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, or a login stored in `~/.claude`) | Claude Code | Removed from the environment of the commands the agent runs (`CLAUDE_CODE_SUBPROCESS_ENV_SCRUB`); the stored login is blocked by a managed `Read` deny rule. Prefer cloud roles (Bedrock task role) when possible. A subscription credential is personal |
+| Claude credential (`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, or a login stored in `~/.claude`) | Claude Code | The stored login (`login`) is blocked by a managed `Read` deny rule; a token or key in the environment is protected by managed rules that deny commands naming it or reading `/proc/*/environ` (Claude Code's own scrub needs user namespaces, which containers usually block). Prefer cloud roles (Bedrock task role) when possible. A subscription credential is personal |
 
 ## Docker and Docker Compose
 

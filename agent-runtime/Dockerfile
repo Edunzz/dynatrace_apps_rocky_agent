@@ -78,7 +78,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # hadolint ignore=DL3008
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      bash ca-certificates curl git jq unzip openssh-client python3 python-is-python3 ripgrep tini \
+      bash bubblewrap ca-certificates curl git jq unzip openssh-client python3 python-is-python3 ripgrep tini \
  && if [ "$INSTALL_DRAWIO_DESKTOP" = "true" ]; then \
       apt-get install -y --no-install-recommends \
         xvfb xauth libgtk-3-0 libnss3 libxss1 libasound2 libgbm1 libnotify4 libxtst6 \

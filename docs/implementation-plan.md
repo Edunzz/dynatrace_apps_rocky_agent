@@ -77,9 +77,11 @@ Claude Code binary against a mock Anthropic API (`ANTHROPIC_BASE_URL`).
   of hooks. In print mode, project settings, hooks and `.mcp.json` servers
   would otherwise apply without a trust prompt.
 * `CLAUDE_CODE_SUBPROCESS_ENV_SCRUB=1` removes credentials from the
-  environments of the commands Claude Code runs and, on Linux, isolates them in
-  a PID namespace (verified on Windows only; Linux is covered by the CI
-  container checks).
+  environments of the commands Claude Code runs. On Linux it requires
+  bubblewrap with unprivileged user namespaces; under Docker's default seccomp
+  profile bubblewrap cannot create them (verified), and Claude Code then fails
+  every run. It is therefore off by default; managed deny rules for commands
+  that name credential variables were verified to deny them without asking.
 
 ### 1.5 Dynatrace App platform (verified with dt-app 1.20.0)
 

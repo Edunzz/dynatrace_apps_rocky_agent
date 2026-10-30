@@ -177,6 +177,15 @@ describe("Claude Code managed settings", () => {
     }
     assert.equal(settings.env.DISABLE_UPDATES, "1");
   });
+
+  it("keeps credentials in the environment out of reach of commands", () => {
+    for (const name of ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "AWS_SECRET_ACCESS_KEY"]) {
+      assert.ok(deny.includes(`Bash(*${name}*)`), name);
+    }
+    assert.ok(deny.includes("Bash(*/environ*)"));
+    assert.equal(settings.permissions.blockReadsOutsideWorkingDirectories, true);
+    assert.deepEqual(settings.permissions.additionalDirectories, ["/home/rocky/.claude/skills"]);
+  });
 });
 
 describe("Dockerfile", () => {

@@ -86,8 +86,23 @@ if [[ -n "$permission" ]]; then
     sleep 2
   done
   marker="$(in_container 'cat /workspace/rocky-integration.txt 2>/dev/null || echo missing')"
-  [[ "$marker" == "rocky-integration scrubbed" ]] && pass "approved command ran without access to Claude credentials" ||
-    fail "approved command output: '$marker' (expected 'rocky-integration scrubbed')"
+  [[ "$marker" == "rocky-integration" ]] && pass "approved command ran in the workspace" ||
+    fail "approved command output: '$marker' (expected 'rocky-integration')"
+fi
+
+# A read-only command that names a credential is denied by the managed rules,
+# without asking and without running.
+authed -X POST -H 'content-type: application/json' -d '{"text":"please show key"}' "$URL/rocky/v1/sessions/$session/prompt" >/dev/null
+for _ in $(seq 1 60); do
+  snap="$(authed "$URL/rocky/v1/sessions/$session/snapshot")"
+  [[ "$(jq -r --arg s "$session" '.status[$s].type' <<<"$snap")" == "idle" ]] && break
+  sleep 2
+done
+key_tool="$(jq -c '[.messages[].parts[] | select(.type == "tool" and (.state.input.command // "" | test("ANTHROPIC_API_KEY")))] | last | .state' <<<"$snap")"
+if jq -e '.status == "error"' <<<"$key_tool" >/dev/null && ! grep -q 'ci-mock-anthropic-key' <<<"$snap"; then
+  pass "command that prints a credential was denied ($(jq -r '.error' <<<"$key_tool" | head -c 80))"
+else
+  fail "credential command: $key_tool"
 fi
 authed -X DELETE "$URL/rocky/v1/sessions/$session" >/dev/null || true
 

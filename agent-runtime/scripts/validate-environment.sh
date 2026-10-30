@@ -148,9 +148,9 @@ elif [[ -f "$CLAUDE_CONFIG_DIR/.credentials.json" ]]; then
 else
   warn "Claude is not signed in: run 'docker compose run --rm rocky-agent login', or set CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY"
 fi
-case "${ROCKY_SUBPROCESS_ENV_SCRUB:-true}" in
-  1 | true | yes | on) ok "ROCKY_SUBPROCESS_ENV_SCRUB on (credentials removed from commands the agent runs)" ;;
-  *) warn "ROCKY_SUBPROCESS_ENV_SCRUB is off: commands the agent runs can read Claude credentials" ;;
+case "${ROCKY_SUBPROCESS_ENV_SCRUB:-false}" in
+  1 | true | yes | on) ok "ROCKY_SUBPROCESS_ENV_SCRUB on (needs bubblewrap with user namespaces; runs fail where the container runtime blocks them)" ;;
+  *) ok "ROCKY_SUBPROCESS_ENV_SCRUB off (managed rules deny commands that read Claude credentials)" ;;
 esac
 
 # --- Summary -------------------------------------------------------------------

@@ -161,9 +161,6 @@ export async function collectStatus({ config, probe, baselineSha256, startedAt, 
   if (config.usesDefaultPassword) {
     warnings.push("The default development password is in use. Set ROCKY_SERVER_PASSWORD before exposing this runtime.");
   }
-  if (!config.claude.subprocessEnvScrub) {
-    warnings.push("ROCKY_SUBPROCESS_ENV_SCRUB is off: commands the agent runs can read Claude credentials from the environment.");
-  }
 
   const [claude, dynatrace, manifest, installed, workspace] = await Promise.all([
     probe.collect(force),

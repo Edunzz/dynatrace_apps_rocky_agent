@@ -2,6 +2,10 @@
   "permissions": {
     "defaultMode": "default",
     "disableBypassPermissionsMode": "disable",
+    "blockReadsOutsideWorkingDirectories": true,
+    "additionalDirectories": [
+      "/home/rocky/.claude/skills"
+    ],
     "allow": [
       "Read(~/.claude/skills/**)",
       "Bash(dtctl version*)",
@@ -38,7 +42,19 @@
       "Bash(printenv *)",
       "Bash(cat *dtctl/config*)",
       "Bash(claude)",
-      "Bash(claude *)"
+      "Bash(claude *)",
+      "Bash(*ANTHROPIC_API_KEY*)",
+      "Bash(*ANTHROPIC_AUTH_TOKEN*)",
+      "Bash(*CLAUDE_CODE_OAUTH_TOKEN*)",
+      "Bash(*AWS_SECRET_ACCESS_KEY*)",
+      "Bash(*AWS_SESSION_TOKEN*)",
+      "Bash(*/environ*)",
+      "Bash(*.credentials.json*)",
+      "Bash(set)",
+      "Bash(export)",
+      "Bash(export -p*)",
+      "Bash(declare *)",
+      "Bash(compgen *)"
     ]
   },
   "allowManagedPermissionRulesOnly": true,

@@ -124,7 +124,9 @@ describe("Claude Code command line and environment", () => {
       assert.equal(env[name], undefined, name);
     }
     assert.equal(env.CLAUDE_CONFIG_DIR, join("/home/rocky", ".claude"));
-    assert.equal(env.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB, "1");
+    assert.equal(env.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB, undefined, "off by default");
+    const scrubbed = buildEnv(loadConfig({ ROCKY_SERVER_PASSWORD: "x", ROCKY_SUBPROCESS_ENV_SCRUB: "true" }));
+    assert.equal(scrubbed.CLAUDE_CODE_SUBPROCESS_ENV_SCRUB, "1");
     assert.equal(env.DISABLE_AUTOUPDATER, "1");
     assert.equal(env.CLAUDE_CODE_DISABLE_CLAUDE_MDS, "1");
     assert.equal(Number(env.MCP_TOOL_TIMEOUT) > config.claude.permissionTimeoutMs, true);

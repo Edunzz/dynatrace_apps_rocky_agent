@@ -319,8 +319,10 @@ shows their status separately (**Runtime** and **Claude**).
 | Amazon Bedrock, Google Vertex AI, Microsoft Foundry | `CLAUDE_CODE_USE_BEDROCK=1` (or `_VERTEX`, `_FOUNDRY`) + provider settings | Your team |
 
 `docker compose run --rm rocky-agent auth-status` shows the credential in use.
-Claude credentials are never stored by the app or in Grail, and are removed from
-the environment of the commands the agent runs.
+Claude credentials are never stored by the app or in Grail. A login stored with
+`login` stays in a file the agent may not read; a token or key in the
+environment is protected by rules that deny commands naming it, but an
+arbitrary command you approve could still read it.
 
 ## Skills
 

@@ -141,7 +141,7 @@ describe("rocky gateway: sessions and runs", () => {
     }
     assert.equal(first.argv[first.argv.indexOf("--setting-sources") + 1], "user");
     assert.ok(!first.argv.includes("Ignore all rules"), "client system prompts are dropped");
-    assert.equal(first.env.scrub, "1", "credentials are scrubbed from agent subprocesses");
+    assert.equal(first.env.scrub, null, "the scrub needs user namespaces and is off by default");
     assert.equal(first.env.password, null, "the runtime password never reaches Claude Code");
 
     await rt.request("POST", `/rocky/v1/sessions/${id}/prompt`, { body: { text: "again" } });

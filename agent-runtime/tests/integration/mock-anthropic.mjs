@@ -5,6 +5,8 @@
 //   * A user message containing "use bash" gets a shell tool call
 //     that writes rocky-integration.txt; writing a file needs approval, so
 //     the call reaches the Rocky permission flow.
+//   * A user message containing "show key" runs a read-only command that
+//     names a credential variable; managed rules must deny it.
 //   * A user message containing "use agent" starts a subagent, which replies
 //     "pong".
 //   * After a tool result, it replies "tool finished".
@@ -56,14 +58,22 @@ export function decide(body) {
   }
   // Linux exposes the shell as Bash; Windows (local experiments) as PowerShell.
   const shell = ["Bash", "PowerShell"].find((name) => tools.some((t) => t.name === name));
+  // A read-only command that would print a credential: managed rules must deny it.
+  if (/show key/i.test(lastUserText(messages)) && shell) {
+    return {
+      toolUse: {
+        id: `toolu_mock_${Date.now()}`,
+        name: shell,
+        input: { command: 'echo "key=${ANTHROPIC_API_KEY:-none}"', description: "Print a variable" },
+      },
+    };
+  }
   if (/use bash/i.test(lastUserText(messages)) && shell) {
     return {
       toolUse: {
         id: `toolu_mock_${Date.now()}`,
         name: shell,
-        // The marker shows whether the credential reached the command
-        // (CLAUDE_CODE_SUBPROCESS_ENV_SCRUB should remove it).
-        input: { command: 'echo "rocky-integration ${ANTHROPIC_API_KEY:-scrubbed}" > rocky-integration.txt', description: "Write a marker file" },
+        input: { command: "echo rocky-integration > rocky-integration.txt", description: "Write a marker file" },
       },
     };
   }
