@@ -85,7 +85,7 @@ RUN apt-get update \
 # the platform binary (x64 AVX2 or baseline, arm64) and copies it into place.
 # The x64 variant is chosen from the build machine's CPU (see docs/operations.md).
 RUN npm install --global --ignore-scripts --no-audit --no-fund "opencode-ai@${OPENCODE_VERSION}" \
- && (cd "$(npm root --global)/opencode-ai" && node postinstall.mjs) \
+ && node "$(npm root --global)/opencode-ai/postinstall.mjs" \
  && npm cache clean --force \
  && opencode --version
 
