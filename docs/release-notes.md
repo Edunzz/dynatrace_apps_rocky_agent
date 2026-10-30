@@ -8,7 +8,7 @@
   (`rm: cannot remove ... Permission denied`); it now makes the old copy
   writable before replacing it, which also repairs volumes already affected.
 * Image checks start the image twice with the same home volume.
-* App 0.2.2, fix: **Save connection** failed with an empty red box. `dt-app`
+* App 0.2.3, fix: **Save connection** failed with an empty red box. `dt-app`
   only deploys settings schemas from `src/settings/schemas/`, and the
   `runtime-connections` schema was in `settings/schemas/`, so it never reached
   the tenant and every save returned 404. The schema moved, and it also gets
@@ -16,9 +16,11 @@
   list can no longer be null, and the runtime URL pattern uses plain
   alternatives without groups (the tenant rejects greedy quantifiers inside
   capture groups). It also accepts `http://[::1]` like the connection form.
-* App 0.2.2, fix: error and warning boxes showed no text. Strato's
+* App 0.2.3, fix: error and warning boxes showed no text. Strato's
   `MessageContainer` needs its text in `MessageContainer.Description`; a test
   now checks every use.
+* App 0.2.2 was not released: the tenant registered the version but rejected
+  its settings schema, and it does not accept the same version again.
 
 ## 0.2.1
 
