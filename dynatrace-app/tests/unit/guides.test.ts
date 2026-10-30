@@ -58,9 +58,10 @@ describe("platform token scopes", () => {
   });
 
   it("keeps the starter profile small and sufficient for the RCA skill", () => {
-    expect(STARTER_SCOPES).toHaveLength(13);
+    expect(STARTER_SCOPES).toHaveLength(20);
     for (const scope of RCA_REQUIRED_SCOPES) expect(STARTER_SCOPES).toContain(scope);
-    expect(STARTER_SCOPES.filter((s) => s.endsWith(":write"))).toEqual(["document:documents:write"]);
+    expect(STARTER_SCOPES).toContain("storage:files:read");
+    expect(STARTER_SCOPES.filter((s) => s.endsWith(":write"))).toEqual(["document:documents:write", "automation:workflows:write", "settings:objects:write"]);
   });
 
   it("keeps the read-only profile free of write scopes", () => {

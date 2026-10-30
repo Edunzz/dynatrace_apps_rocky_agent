@@ -29,10 +29,13 @@ The app shows the same lists, with copy buttons, under **Dynatrace platform toke
 
 ### Starter (getting started, `DTCTL_SAFETY_LEVEL=readwrite-mine`)
 
-The quickest token to create (13 scopes): reads logs, metrics, traces,
-events, entities and business data, and lets the agent publish its own
-notebooks (for example the RCA) after you confirm. It is what the RCA skill
-requires plus what its prerequisite check recommends:
+The quickest token to create (20 scopes). The agent can:
+
+* **read** logs, metrics, traces, events, entities, business data, user
+  sessions and **lookup tables** (`storage:files:read`);
+* **create**, after you confirm, its own notebooks (for example the RCA),
+  **workflows** (`automation:workflows:*`) and **alerts**: Davis anomaly
+  detectors and other settings objects (`settings:objects:write`).
 
 ```text
 storage:buckets:read
@@ -48,7 +51,18 @@ storage:bizevents:read
 storage:user.events:read
 storage:user.sessions:read
 storage:system:read
+storage:files:read
+automation:workflows:read
+automation:workflows:write
+automation:workflows:run
+settings:schemas:read
+settings:objects:read
+settings:objects:write
 ```
+
+With `DTCTL_SAFETY_LEVEL=readwrite-mine` the agent can only change what the
+token's user owns; editing alerts or workflows created by others needs
+`readwrite-all`.
 
 ### Recommended (full, `DTCTL_SAFETY_LEVEL=readwrite-mine`)
 

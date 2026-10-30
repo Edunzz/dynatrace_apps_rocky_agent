@@ -1,5 +1,6 @@
 import { PageLayout } from "@dynatrace/strato-components/layouts";
 import React, { useState } from "react";
+import { AppFooter } from "./About";
 import { SessionSidebar } from "./SessionSidebar";
 import { StatusBar } from "./StatusBar";
 
@@ -22,7 +23,8 @@ function saveCollapsed(value: boolean) {
   }
 }
 
-// Status bar on top; sessions on the left; the current page in the center.
+// Status bar on top; sessions on the left; the current page in the center,
+// above a footer with the version, author and support disclaimer.
 // The sidebar is resizable, can be hidden from the status bar (the choice is
 // remembered), and turns into a drawer on narrow viewports.
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -53,7 +55,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <SessionSidebar />
       </PageLayout.Sidebar>
       <PageLayout.Content>
-        <main style={{ height: "100%", overflowY: "auto" }}>{children}</main>
+        <div className="rk-content">
+          <main className="rk-main">{children}</main>
+          <AppFooter />
+        </div>
       </PageLayout.Content>
     </PageLayout>
   );

@@ -156,6 +156,7 @@ the tunnel.
 ## Verification status
 
 * Option B was verified as described above.
-* Option A has not been run end to end yet: the compose configuration and the
-  gateway's proxy check are covered by tests, but no real tunnel has been
-  started against a real environment.
+* Option A was verified manually on 2026-10-30: app deployed from a codespace,
+  runtime on Docker Desktop (WSL2) behind a Cloudflare quick tunnel, Claude
+  subscription login inside the container, connection test, saved connection
+  and an agent session that created a dashboard.

@@ -182,20 +182,20 @@ and `Files-SHA256-Hashes.txt`.
 * L9. The ECS, Azure Container Apps and Kubernetes templates are validated
   statically (Terraform, cfn-lint, Bicep, kubeconform) but were not applied to
   live cloud accounts.
-* L10. The Codespaces app deployment (`npm run deploy:token`) is tested in
-  dry-run mode only; a deployment from a real codespace to a real environment
-  is pending. Running the runtime on your computer with `dt-app dev` was
+* L10. The Codespaces app deployment (`npm run deploy:token`) was verified
+  manually from a real codespace to a real environment (2026-10-30); CI covers
+  the dry-run mode only. Running the runtime on your computer with `dt-app dev` was
   verified by running the built app functions in the local Dynatrace JavaScript
   runtime against a local runtime; `dt-app dev` itself was not started because
   it needs a browser sign-in.
-* L11. The Getting started path (installed app + Cloudflare quick tunnel) has
-  not been run end to end: the compose configuration and the gateway's proxy
-  check are covered by tests, but no real tunnel was started against a real
-  environment. Quick-tunnel addresses change on every restart and are meant for
-  testing only.
-* L12. Claude Code was exercised against a mock Anthropic API only. Signing in
-  with a real Claude account inside the container (`login`, `setup-token`) and
-  a real model run have not been tested by this project.
+* L11. The Getting started path (installed app + Cloudflare quick tunnel) was
+  verified manually end to end (2026-10-30); CI covers the compose
+  configuration and the gateway's proxy check. Quick-tunnel addresses change on
+  every restart and are meant for testing only.
+* L12. CI exercises Claude Code against a mock Anthropic API. Signing in with a
+  real Claude subscription inside the container (`login`) and real model runs
+  were verified manually (2026-10-30); `setup-token`, API keys and cloud
+  providers were not.
 * L13. A Claude subscription credential belongs to one person; Anthropic does
   not allow sharing it through a runtime that other people use. The runtime
   cannot enforce this; the documentation states it.

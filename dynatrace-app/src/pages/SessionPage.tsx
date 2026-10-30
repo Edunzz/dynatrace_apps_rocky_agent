@@ -1,6 +1,6 @@
 import { Button } from "@dynatrace/strato-components/buttons";
 import { Chip, MessageContainer, ProgressCircle } from "@dynatrace/strato-components/content";
-import { FormField, Label, TextArea, TextInput } from "@dynatrace/strato-components/forms";
+import { FormField, Label, Switch, TextArea, TextInput } from "@dynatrace/strato-components/forms";
 import { showToast } from "@dynatrace/strato-components/notifications";
 import { DeleteIcon, DocumentIcon, DocumentStackIcon, EditIcon, FormatListNumberedIcon, PlusIcon, SaveIcon, StopIcon } from "@dynatrace/strato-icons";
 import React, { useEffect, useMemo, useState } from "react";
@@ -13,6 +13,7 @@ import { PasswordPrompt } from "../components/PasswordPrompt";
 import { PermissionCard } from "../components/PermissionCard";
 import { SavePreviewModal } from "../components/SavePreviewModal";
 import { SessionPolicyModal } from "../components/SessionPolicyModal";
+import { useAutoApprove } from "../hooks/useAutoApprove";
 import { useSessionChat } from "../hooks/useSessionChat";
 import { errorMessage } from "../services/functions";
 import { type Artifact, runtimeApi, type Todo } from "../services/runtime";
@@ -34,6 +35,7 @@ export function SessionPage() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [modal, setModal] = useState<"save" | "delete" | "policy" | null>(null);
+  const [autoApprove, setAutoApprove] = useAutoApprove(sessionId, chat.permissions, chat.replyPermission, (e) => setActionError(errorMessage(e)));
 
   useEffect(() => {
     if (!editingTitle) setTitle(session?.title ?? "");
@@ -135,6 +137,9 @@ export function SessionPage() {
             </Button.Prefix>
             New session
           </Button>
+          <Switch value={autoApprove} onChange={(checked) => setAutoApprove(checked)} disabled={!api}>
+            Auto-approve
+          </Switch>
           <span className="rk-spacer" />
           <Button color="critical" disabled={!chat.busy} onClick={() => void chat.stopGeneration().catch((e: unknown) => setActionError(errorMessage(e)))}>
             <Button.Prefix>
@@ -149,6 +154,16 @@ export function SessionPage() {
             Delete ephemeral session
           </Button>
         </div>
+        {autoApprove && (
+          <MessageContainer variant="warning">
+            <MessageContainer.Title>Auto-approve is on</MessageContainer.Title>
+            <MessageContainer.Description>
+              Rocky's tool requests in this session are approved once each, without asking, while this page is open. Changes to
+              Dynatrace still need your CONFIRM message, the token's scopes and DTCTL_SAFETY_LEVEL still apply, and every approval is
+              audited.
+            </MessageContainer.Description>
+          </MessageContainer>
+        )}
         {actionError && (
           <MessageContainer variant="critical">
             <MessageContainer.Description>{actionError}</MessageContainer.Description>

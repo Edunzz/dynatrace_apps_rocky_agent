@@ -770,6 +770,69 @@
   overflow-wrap: anywhere;
 }
 
+/* Shell, footer and about */
+
+.rk-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.rk-main {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.rk-footer {
+  flex: none;
+  padding: 8px 16px;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--rk-muted);
+  border-top: 1px solid var(--rk-border-subdued);
+}
+
+.rk-about__lead {
+  margin: 0;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 600;
+  color: var(--rk-text);
+}
+
+.rk-about {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 8px 24px;
+  margin: 0;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.rk-about dt {
+  color: var(--rk-muted);
+}
+
+.rk-about dd {
+  margin: 0;
+  font-weight: 600;
+  color: var(--rk-text);
+  overflow-wrap: anywhere;
+}
+
+.rk-disclaimer {
+  padding: 12px 14px;
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--rk-text);
+  background: var(--dt-colors-background-container-warning-default, #fdf9f1);
+  border: 1px solid var(--dt-colors-border-warning-default, #fdebc2);
+  border-radius: 8px;
+}
+
 /* Hover only where a fine pointer can hover. */
 
 @media (hover: hover) and (pointer: fine) {

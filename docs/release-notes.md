@@ -1,5 +1,19 @@
 # Release notes
 
+## App 0.2.6
+
+* **Auto-approve** switch in the session header: approves the agent's tool
+  requests for that session without asking, once each, while the page is open.
+  Off by default; Dynatrace changes still need the CONFIRM message, and the
+  token's scopes and `DTCTL_SAFETY_LEVEL` still apply (threat model T16).
+* **About** dialog (ⓘ in the top bar) with the version, author, source,
+  documentation and the community-app disclaimer, which also sits in a footer.
+* The **Starter** token profile (Getting started) adds reading lookup tables
+  (`storage:files:read`) and creating workflows (`automation:workflows:*`) and
+  alerts (`settings:schemas:read`, `settings:objects:read|write`): 20 scopes.
+* Docs: a clearer Getting started, a shorter README and a restyled
+  architecture diagram with the numbered flow.
+
 ## App 0.2.5
 
 * **New session** button at the top of the sidebar and in the session header:

@@ -1,11 +1,12 @@
 import { Button } from "@dynatrace/strato-components/buttons";
-import { CloseSidebarIcon, OpenSidebarIcon, RefreshIcon } from "@dynatrace/strato-icons";
-import React from "react";
+import { CloseSidebarIcon, InformationIcon, OpenSidebarIcon, RefreshIcon } from "@dynatrace/strato-icons";
+import React, { useState } from "react";
 import { useConnection } from "../app/ConnectionContext";
 import { useRuntimeData } from "../app/RuntimeDataContext";
 import { stateLabel, stateTone } from "../app/theme";
 import type { RuntimeStatus } from "../models/runtime";
 import { errorMessage, RockyError } from "../services/functions";
+import { AboutModal } from "./About";
 import { RockyLogo } from "./RockyLogo";
 import { StatusLight } from "./StatusLight";
 
@@ -41,6 +42,7 @@ export interface StatusBarProps {
 export function StatusBar({ sidebarCollapsed = false, onToggleSidebar }: StatusBarProps) {
   const { active, connectionRef, needsPassword } = useConnection();
   const { status } = useRuntimeData();
+  const [about, setAbout] = useState(false);
   const s = status.data;
   const error = status.error;
   const authFailed = error instanceof RockyError && error.code === "authentication_failed";
@@ -108,7 +110,13 @@ export function StatusBar({ sidebarCollapsed = false, onToggleSidebar }: StatusB
             Refresh
           </Button>
         )}
+        <Button size="condensed" aria-label="About Rocky Agent" title="About Rocky Agent" onClick={() => setAbout(true)}>
+          <Button.Prefix>
+            <InformationIcon />
+          </Button.Prefix>
+        </Button>
       </div>
+      <AboutModal show={about} onClose={() => setAbout(false)} />
     </header>
   );
 }

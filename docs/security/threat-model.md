@@ -86,6 +86,7 @@
 | T13 | Container escape or privilege escalation | Non-root UID 10001, read-only root filesystem, all capabilities dropped, no-new-privileges, seccomp RuntimeDefault, Restricted Pod Security | Kernel vulnerabilities |
 | T14 | Browser-side XSS through agent output | React escaping, Strato `Markdown` rendering, ESLint `no-unsanitized`/SDL rules, no `dangerouslySetInnerHTML` | Vulnerabilities in rendering libraries |
 | T15 | A personal Claude subscription is used by other people | Documentation and the app state it; teams use API keys or cloud providers | Not technically enforceable |
+| T16 | **Auto-approve** lets tool runs proceed without a person reviewing them | Off by default; per session and per browser tab; a warning stays visible while it is on; it answers "once" only (the gateway refuses "always"); Dynatrace changes still need the CONFIRM message; token scopes, `DTCTL_SAFETY_LEVEL` and audit events still apply; it stops when the page closes | Prompt injection in data the agent reads can run commands nobody reviews; the CONFIRM protocol is an instruction, not a technical control |
 
 ## 6. Session lifecycle
 

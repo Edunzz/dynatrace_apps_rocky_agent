@@ -129,13 +129,21 @@ export const RCA_REQUIRED_SCOPES = [
 ] as const;
 
 // Small set for getting started: what the RCA skill requires plus what its
-// prerequisite check recommends. Writes are limited to documents (notebooks).
+// prerequisite check recommends, reading lookup tables, and creating workflows
+// and alerts (Davis anomaly detectors are settings objects).
 export const STARTER_SCOPES = [
   ...RCA_REQUIRED_SCOPES,
   "storage:bizevents:read",
   "storage:user.events:read",
   "storage:user.sessions:read",
   "storage:system:read",
+  "storage:files:read",
+  "automation:workflows:read",
+  "automation:workflows:write",
+  "automation:workflows:run",
+  "settings:schemas:read",
+  "settings:objects:read",
+  "settings:objects:write",
 ] as const;
 
 // Separate token used only to deploy the app (dt-app deploy, Codespaces).
@@ -155,7 +163,7 @@ export const TOKEN_PROFILES: TokenProfile[] = [
     title: "Starter",
     safetyLevel: "readwrite-mine",
     description:
-      "Quickest to create: reads logs, metrics, traces, events, entities and business data, and lets the agent publish its own notebooks (for example the RCA) after you confirm.",
+      "Quickest to create: reads logs, metrics, traces, events, entities, business data and lookup tables, and lets the agent create its own notebooks (for example the RCA), workflows and alerts after you confirm.",
     scopes: STARTER_SCOPES,
   },
   {
