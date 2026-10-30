@@ -1,0 +1,101 @@
+name: container-build
+
+on:
+  pull_request:
+    paths:
+      - "agent-runtime/**"
+      - "deploy/local/**"
+      - ".github/workflows/container-build.yml"
+  push:
+    branches: [main]
+    paths:
+      - "agent-runtime/**"
+      - "deploy/local/**"
+      - ".github/workflows/container-build.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  runtime-tests:
+    name: Runtime unit tests
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: agent-runtime
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - name: Syntax check
+        run: npm run lint
+      - name: Unit, script and draw.io tests
+        run: npm test
+      - name: ShellCheck
+        run: shellcheck --severity=warning entrypoint.sh healthcheck.sh scripts/*.sh tests/container/*.sh
+
+  dockerfile-lint:
+    name: Dockerfile lint
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
+        with:
+          dockerfile: agent-runtime/Dockerfile
+          failure-threshold: warning
+      - uses: hadolint/hadolint-action@06be81baf89a55ffd0e24b8f04a4185738dd3387 # v3.5.0
+        with:
+          dockerfile: agent-runtime/Dockerfile.dev
+          failure-threshold: warning
+
+  build-and-test:
+    name: Build image and run container tests
+    needs: [runtime-tests, dockerfile-lint]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: Build image (linux/amd64)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: agent-runtime
+          load: true
+          tags: rocky-agent:ci
+          build-args: |
+            ROCKY_VERSION=ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Image checks
+        run: bash agent-runtime/tests/container/image-checks.sh rocky-agent:ci
+      - name: Start integration stack (mock model provider, degraded Dynatrace)
+        run: docker compose -f deploy/local/docker-compose.ci.yml up -d
+      - name: Runtime checks
+        run: bash agent-runtime/tests/container/compose-checks.sh
+      - name: End-to-end tests
+        working-directory: agent-runtime
+        env:
+          ROCKY_IT_URL: http://127.0.0.1:4096
+          ROCKY_IT_PASSWORD: ci-integration-password-0123
+        run: npm run test:integration
+      - name: Container logs
+        if: failure()
+        run: docker compose -f deploy/local/docker-compose.ci.yml logs --no-color | tail -n 300
+      - name: Stop stack
+        if: always()
+        run: docker compose -f deploy/local/docker-compose.ci.yml down -v
