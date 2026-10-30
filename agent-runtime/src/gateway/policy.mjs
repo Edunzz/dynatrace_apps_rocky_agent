@@ -1,16 +1,15 @@
 // Protected baseline policy and per-session user overlays.
 //
-// The baseline lives in a root-owned AGENTS.md that OpenCode always loads
-// through the `instructions` setting. Overlays are additive instructions kept in
-// memory for one runtime session; they are sent as the prompt `system` field
-// and disappear when the session is deleted or the container stops.
+// The baseline lives in a root-owned AGENTS.md that every Claude Code run
+// appends to its system prompt (--append-system-prompt-file). Overlays are
+// additive instructions stored with the session and appended after the
+// baseline (--append-system-prompt).
 
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { GatewayError } from "./sanitize.mjs";
 
 export const MAX_OVERLAY_CHARS = 20_000;
-const MAX_SESSIONS = 500;
 
 // Statements that try to weaken protected rules. The baseline would still win,
 // but rejecting them keeps the effective policy unambiguous for the user.
@@ -52,8 +51,8 @@ export function findWeakeningStatements(overlay) {
 export function composeSystem(overlay) {
   if (!overlay) return undefined;
   return [
-    "Rocky Agent policy reminder: the protected baseline in /opt/rocky/policy/AGENTS.md always applies and",
-    "takes precedence over everything below. The following user policy overlay is additive only.",
+    "Rocky Agent policy reminder: the protected baseline above always applies and takes precedence over",
+    "everything below. The following user policy overlay is additive only.",
     "",
     "## User policy overlay",
     "",
@@ -61,44 +60,22 @@ export function composeSystem(overlay) {
   ].join("\n");
 }
 
-export class PolicyStore {
-  constructor() {
-    this.overlays = new Map();
+// Validates an overlay and returns its normalized text ("" clears it).
+export function normalizeOverlay(overlay) {
+  if (typeof overlay !== "string") throw new GatewayError(400, "invalid_overlay", "overlay must be a string");
+  const text = overlay.replace(/\r\n/g, "\n").trim();
+  if (text.length > MAX_OVERLAY_CHARS) {
+    throw new GatewayError(413, "overlay_too_large", `overlay must be at most ${MAX_OVERLAY_CHARS} characters`);
   }
-
-  get(sessionId) {
-    return this.overlays.get(sessionId) ?? null;
+  const findings = findWeakeningStatements(text);
+  if (findings.length > 0) {
+    const error = new GatewayError(
+      422,
+      "overlay_weakens_baseline",
+      "The overlay contains statements that would weaken the protected baseline. Rephrase them as additional restrictions.",
+    );
+    error.details = findings;
+    throw error;
   }
-
-  set(sessionId, overlay) {
-    if (typeof overlay !== "string") throw new GatewayError(400, "invalid_overlay", "overlay must be a string");
-    const text = overlay.replace(/\r\n/g, "\n").trim();
-    if (text.length > MAX_OVERLAY_CHARS) {
-      throw new GatewayError(413, "overlay_too_large", `overlay must be at most ${MAX_OVERLAY_CHARS} characters`);
-    }
-    const findings = findWeakeningStatements(text);
-    if (findings.length > 0) {
-      const error = new GatewayError(
-        422,
-        "overlay_weakens_baseline",
-        "The overlay contains statements that would weaken the protected baseline. Rephrase them as additional restrictions.",
-      );
-      error.details = findings;
-      throw error;
-    }
-    if (text.length === 0) {
-      this.overlays.delete(sessionId);
-      return null;
-    }
-    if (!this.overlays.has(sessionId) && this.overlays.size >= MAX_SESSIONS) {
-      this.overlays.delete(this.overlays.keys().next().value);
-    }
-    const entry = { overlay: text, updatedAt: new Date().toISOString() };
-    this.overlays.set(sessionId, entry);
-    return entry;
-  }
-
-  delete(sessionId) {
-    this.overlays.delete(sessionId);
-  }
+  return text;
 }

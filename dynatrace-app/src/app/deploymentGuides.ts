@@ -5,7 +5,7 @@
 // placeholders below; this file contains no secret values.
 /* eslint-disable noSecrets/no-secrets */
 
-export const IMAGE = "ghcr.io/edunzz/dynatrace_apps_rocky_agent:0.1.0";
+export const IMAGE = "docker.io/edunzz/rocky-agent:0.2.0";
 export const REPO = "https://github.com/Edunzz/dynatrace_apps_rocky_agent";
 
 export type GuideLanguage = "bash" | "yaml" | "json";
@@ -30,18 +30,17 @@ const HEALTH = `# Liveness (no credentials, returns only {"status":"ok"}):
 curl -fsS https://rocky-agent.example.com/rocky/v1/livez
 
 # Authenticated health without putting the password in shell history:
-read -rs ROCKY_PASSWORD && printf 'user = "opencode:%s"\\n' "$ROCKY_PASSWORD" | \\
-  curl -fsS -K - https://rocky-agent.example.com/global/health`;
+read -rs ROCKY_PASSWORD && printf 'user = "rocky:%s"\\n' "$ROCKY_PASSWORD" | \\
+  curl -fsS -K - https://rocky-agent.example.com/rocky/v1/health`;
 
 const ENV_ITEMS = [
   "DT_PLATFORM_URL: https://<environment-id>.apps.dynatrace.com (required)",
   "DT_PLATFORM_TOKEN: platform token (dt0s16.…) of a dedicated service user; see “Dynatrace platform token” for scopes (required, secret)",
-  "OPENCODE_SERVER_PASSWORD: at least 16 characters (required, secret)",
-  "OPENCODE_SERVER_USERNAME: default opencode",
-  "OPENCODE_MODEL / OPENCODE_PROVIDER: for example anthropic/claude-sonnet-4-5",
-  "ANTHROPIC_API_KEY, OPENAI_API_KEY or OPENCODE_API_KEY: model provider credential (secret)",
-  "AWS_REGION (+ task role) for Amazon Bedrock",
-  "NODE_ENV=production, LOG_LEVEL=info, OPENCODE_PORT=4096, WORKSPACE_PATH=/workspace",
+  "ROCKY_SERVER_PASSWORD: at least 16 characters (required, secret)",
+  "ROCKY_SERVER_USERNAME: default rocky",
+  "ROCKY_MODEL: optional, for example sonnet or opus",
+  "Claude credential (secret), one of: CLAUDE_CODE_OAUTH_TOKEN (your Claude subscription, personal use only), ANTHROPIC_API_KEY, or CLAUDE_CODE_USE_BEDROCK=1 with AWS_REGION and a task role",
+  "NODE_ENV=production, LOG_LEVEL=info, ROCKY_PORT=4096, WORKSPACE_PATH=/workspace",
 ];
 
 const TLS = "Terminate TLS at the load balancer, ingress or reverse proxy with a publicly trusted certificate. Dynatrace App Functions always verify certificates and cannot trust a private CA; private runtimes must be reached through Dynatrace EdgeConnect or a gateway with a public certificate.";
@@ -54,29 +53,30 @@ export const DEPLOYMENT_GUIDES: DeploymentGuide[] = [
       "Fastest way to try Rocky Agent: the runtime runs on your computer with Docker Compose, and a Cloudflare quick tunnel gives it a public HTTPS address this app can call. This app runs its functions in Dynatrace, so it cannot reach your localhost directly. Without a tunnel, run this app on your computer with dt-app dev and connect to http://localhost:4096.",
     docsPath: "docs/deployment/local.md",
     sections: [
-      { title: "Prerequisites", items: ["Docker Desktop or Docker Engine with Compose", "Git", "A Dynatrace SaaS environment and a runtime platform token (see “Dynatrace platform token”, Starter)", "A model provider key (or OpenCode Zen free models)", "Without the tunnel: Node.js 20+ to run dt-app dev"] },
+      { title: "Prerequisites", items: ["Docker Desktop or Docker Engine with Compose", "Git", "A Dynatrace SaaS environment and a runtime platform token (see “Dynatrace platform token”, Starter)", "A Claude subscription (Pro, Max, Team or Enterprise) or an Anthropic API key", "Without the tunnel: Node.js 20+ to run dt-app dev"] },
       {
         title: "Deployment commands",
         code: {
           language: "bash",
           content: `git clone ${REPO}.git
 cd dynatrace_apps_rocky_agent
-cp .env.example .env    # set DT_PLATFORM_URL, DT_PLATFORM_TOKEN, OPENCODE_SERVER_PASSWORD and a model
-docker compose --profile tunnel up -d --build
+cp .env.example .env    # set DT_PLATFORM_URL, DT_PLATFORM_TOKEN and ROCKY_SERVER_PASSWORD
+docker compose run --rm rocky-agent login    # once: open the URL it prints and sign in to Claude
+docker compose --profile tunnel up -d
 docker compose logs tunnel    # copy the https://<random>.trycloudflare.com address
 
 # Without the tunnel: runtime on http://127.0.0.1:4096 and this app on your computer
-docker compose up -d --build
+docker compose up -d
 cd dynatrace-app && npm ci
 DT_APP_ENVIRONMENT_URL=https://<environment-id>.apps.dynatrace.com npm start`,
         },
       },
-      { title: "Environment variables", items: [...ENV_ITEMS.slice(0, 3), ...ENV_ITEMS.slice(4, 6), "NODE_ENV: production by default. development with an empty OPENCODE_SERVER_PASSWORD uses the documented development default (dt-app dev only; rejected through the tunnel)"] },
+      { title: "Environment variables", items: [...ENV_ITEMS.slice(0, 3), ENV_ITEMS[5], "Claude sign-in: docker compose run --rm rocky-agent login (stored in the rocky-home volume), or CLAUDE_CODE_OAUTH_TOKEN / ANTHROPIC_API_KEY in .env", "NODE_ENV: production by default. development with an empty ROCKY_SERVER_PASSWORD uses the documented development default (dt-app dev only; rejected through the tunnel)"] },
       { title: "Secret configuration", text: "Keep secrets in .env (git-ignored, readable only by you). Never commit it." },
-      { title: "Networking requirements", items: ["Port 4096 is published on 127.0.0.1 only; the tunnel connects to the runtime inside Docker", "Allow *.trycloudflare.com once in Settings > General > External requests, then connect to the https://….trycloudflare.com address", "The tunnel address changes on every restart: edit the connection with the new one", "With dt-app dev connect to http://localhost:4096 instead (plain HTTP is accepted for localhost only)", "Outbound HTTPS from Docker to Dynatrace, the model provider and Cloudflare"] },
+      { title: "Networking requirements", items: ["Port 4096 is published on 127.0.0.1 only; the tunnel connects to the runtime inside Docker", "Allow *.trycloudflare.com once in Settings > General > External requests, then connect to the https://….trycloudflare.com address", "The tunnel address changes on every restart: edit the connection with the new one", "With dt-app dev connect to http://localhost:4096 instead (plain HTTP is accepted for localhost only)", "Outbound HTTPS from Docker to Dynatrace, Anthropic and Cloudflare"] },
       { title: "TLS recommendation", text: "The quick tunnel serves the address with a public Cloudflare certificate. It is meant for testing: for teams use a server or cloud deployment with your own HTTPS address. Not needed with dt-app dev on localhost." },
       { title: "Health-check instructions", code: { language: "bash", content: "docker compose ps                      # rocky-agent should be healthy\ncurl -fsS http://127.0.0.1:4096/rocky/v1/livez\ndocker compose logs tunnel             # current public address" } },
-      { title: "Cleanup instructions", code: { language: "bash", content: "docker compose --profile tunnel down -v   # also removes the workspace volume and every ephemeral session\n# Remove *.trycloudflare.com from External requests when you stop testing" } },
+      { title: "Cleanup instructions", code: { language: "bash", content: "docker compose --profile tunnel down -v   # also removes the volumes: workspace, Claude login and sessions\n# Remove *.trycloudflare.com from External requests when you stop testing" } },
       { title: "Cost and security notes", items: ["No cloud cost; the runtime uses your machine (about 2 GiB RAM)", "The tunnel makes the runtime reachable from the Internet at a random address: every request needs the password, and only the routes this app uses are exposed", "Allowing *.trycloudflare.com lets every app in the environment call any quick-tunnel address", "Never publish port 4096 itself beyond localhost"] },
     ],
     checklist: ["docker compose ps shows rocky-agent healthy", "docker compose logs tunnel shows a trycloudflare.com address", "*.trycloudflare.com allowed in External requests", "Test connection passes in this app"],
@@ -134,11 +134,11 @@ docker run -d --name rocky-agent --restart unless-stopped \\
         title: "Secret configuration",
         text: "Use an env file readable only by the operator, or Docker secrets with Compose/Swarm. Never pass tokens with -e on the command line and never bake them into images.",
       },
-      { title: "Networking requirements", items: ["Publish 4096 on 127.0.0.1 only and expose it through the HTTPS proxy", "Allow the runtime host in Dynatrace: Settings > General > External requests", "Outbound HTTPS from the container to your Dynatrace environment and model provider"] },
+      { title: "Networking requirements", items: ["Publish 4096 on 127.0.0.1 only and expose it through the HTTPS proxy", "Allow the runtime host in Dynatrace: Settings > General > External requests", "Outbound HTTPS from the container to your Dynatrace environment and Anthropic (or your cloud provider)"] },
       { title: "TLS recommendation", text: TLS },
       { title: "Health-check instructions", code: { language: "bash", content: HEALTH } },
       { title: "Cleanup instructions", code: { language: "bash", content: "docker rm -f rocky-agent\ndocker volume rm rocky-workspace   # deletes the workspace and every ephemeral session\nshred -u rocky.env" } },
-      { title: "Cost and security notes", items: ["Recommended: 1 vCPU, 2 GiB RAM; large repositories need 2 vCPU and 4–8 GiB", "Never expose port 4096 directly to the Internet", "Rotate OPENCODE_SERVER_PASSWORD and the platform token regularly"] },
+      { title: "Cost and security notes", items: ["Recommended: 1 vCPU, 2 GiB RAM; large repositories need 2 vCPU and 4–8 GiB", "Never expose port 4096 directly to the Internet", "Rotate ROCKY_SERVER_PASSWORD and the platform token regularly"] },
     ],
     checklist: ["Container is healthy (docker ps shows healthy)", "/rocky/v1/livez answers through the HTTPS URL", "Runtime host allowlisted for App Functions", "Test connection passes in this app"],
   },
@@ -233,7 +233,7 @@ az keyvault secret set --vault-name <vault> --name server-password --file passwo
           content: `kubectl create namespace rocky-agent
 kubectl -n rocky-agent create secret generic rocky-agent-secrets \\
   --from-file=DT_PLATFORM_TOKEN=./token.txt \\
-  --from-file=OPENCODE_SERVER_PASSWORD=./password.txt \\
+  --from-file=ROCKY_SERVER_PASSWORD=./password.txt \\
   --from-file=ANTHROPIC_API_KEY=./anthropic.txt
 kubectl apply -k deploy/kubernetes/examples/production`,
         },
@@ -251,10 +251,10 @@ kubectl apply -k deploy/kubernetes/examples/production`,
   {
     id: "existing",
     title: "Existing runtime",
-    summary: "Connect to a Rocky runtime or a compatible OpenCode server that is already running.",
+    summary: "Connect to a Rocky runtime that is already running.",
     docsPath: "docs/deployment/existing-runtime.md",
     sections: [
-      { title: "Prerequisites", items: ["A Rocky Agent runtime (recommended) or OpenCode 1.19+ served with basic authentication", "An HTTPS URL reachable from Dynatrace"] },
+      { title: "Prerequisites", items: ["A Rocky Agent runtime 0.2 or later (Claude Code)", "An HTTPS URL reachable from Dynatrace"] },
       { title: "Deployment commands", text: "Nothing to deploy. Enter the HTTPS URL, username and password below and run the connection test." },
       { title: "Environment variables", text: "Managed by whoever operates the runtime. The app needs only the URL, username and password." },
       { title: "Secret configuration", text: "Store the password as an owner-only secret, reference a Credential Vault entry, or choose “Ask every session” to keep it in memory only." },
@@ -262,8 +262,8 @@ kubectl apply -k deploy/kubernetes/examples/production`,
       { title: "TLS recommendation", text: TLS },
       { title: "Health-check instructions", code: { language: "bash", content: HEALTH } },
       { title: "Cleanup instructions", text: "Delete the connection in this app. Saved sessions in Dynatrace are not affected." },
-      { title: "Cost and security notes", items: ["Without the Rocky gateway the raw OpenCode API (including terminal endpoints) is exposed to anyone with the password", "Status indicators and policy overlays need the Rocky gateway"] },
+      { title: "Cost and security notes", items: ["The runtime exposes only the Rocky API; Claude Code itself never listens on a port", "A Claude subscription on a shared runtime is not allowed: use an API key or a cloud provider for teams"] },
     ],
-    checklist: ["URL uses HTTPS", "Connection test passes", "Rocky gateway detected (recommended)"],
+    checklist: ["URL uses HTTPS", "Connection test passes", "Claude sign-in passes"],
   },
 ];

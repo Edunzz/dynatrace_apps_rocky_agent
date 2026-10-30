@@ -16,12 +16,11 @@ fail() { printf '[FAIL] %s\n' "$1"; failures=$((failures + 1)); }
 
 NODE_ENV="${NODE_ENV:-production}"
 LOG_LEVEL="${LOG_LEVEL:-info}"
-OPENCODE_PORT="${OPENCODE_PORT:-4096}"
+ROCKY_PORT="${ROCKY_PORT:-4096}"
 WORKSPACE_PATH="${WORKSPACE_PATH:-/workspace}"
-OPENCODE_SERVER_USERNAME="${OPENCODE_SERVER_USERNAME:-opencode}"
-OPENCODE_SERVER_PASSWORD="${OPENCODE_SERVER_PASSWORD:-}"
+ROCKY_SERVER_USERNAME="${ROCKY_SERVER_USERNAME:-rocky}"
+ROCKY_SERVER_PASSWORD="${ROCKY_SERVER_PASSWORD:-}"
 DTCTL_SAFETY_LEVEL="${DTCTL_SAFETY_LEVEL:-readwrite-mine}"
-ROCKY_GATEWAY_ENABLED="${ROCKY_GATEWAY_ENABLED:-true}"
 
 # --- NODE_ENV --------------------------------------------------------------
 case "$NODE_ENV" in
@@ -30,24 +29,24 @@ case "$NODE_ENV" in
 esac
 
 # --- Runtime password -------------------------------------------------------
-if [[ -z "$OPENCODE_SERVER_PASSWORD" ]]; then
-  fail "OPENCODE_SERVER_PASSWORD is required"
-elif [[ "$OPENCODE_SERVER_PASSWORD" == "$DEFAULT_PASSWORD" ]]; then
+if [[ -z "$ROCKY_SERVER_PASSWORD" ]]; then
+  fail "ROCKY_SERVER_PASSWORD is required"
+elif [[ "$ROCKY_SERVER_PASSWORD" == "$DEFAULT_PASSWORD" ]]; then
   if [[ "$NODE_ENV" == "production" ]]; then
-    fail "OPENCODE_SERVER_PASSWORD uses the documented development default. Set a unique password of at least 16 characters for production."
+    fail "ROCKY_SERVER_PASSWORD uses the documented development default. Set a unique password of at least 16 characters for production."
   else
-    warn "OPENCODE_SERVER_PASSWORD uses the documented development default. Never expose this runtime outside your workstation."
+    warn "ROCKY_SERVER_PASSWORD uses the documented development default. Never expose this runtime outside your workstation."
   fi
-elif [[ "$NODE_ENV" == "production" && ${#OPENCODE_SERVER_PASSWORD} -lt 16 ]]; then
-  fail "OPENCODE_SERVER_PASSWORD must be at least 16 characters in production"
+elif [[ "$NODE_ENV" == "production" && ${#ROCKY_SERVER_PASSWORD} -lt 16 ]]; then
+  fail "ROCKY_SERVER_PASSWORD must be at least 16 characters in production"
 else
-  ok "OPENCODE_SERVER_PASSWORD is set (${#OPENCODE_SERVER_PASSWORD} characters)"
+  ok "ROCKY_SERVER_PASSWORD is set (${#ROCKY_SERVER_PASSWORD} characters)"
 fi
 
-if [[ ! "$OPENCODE_SERVER_USERNAME" =~ ^[A-Za-z0-9._-]{1,64}$ ]]; then
-  fail "OPENCODE_SERVER_USERNAME may only contain letters, digits, '.', '_' and '-' (max 64)"
+if [[ ! "$ROCKY_SERVER_USERNAME" =~ ^[A-Za-z0-9._-]{1,64}$ ]]; then
+  fail "ROCKY_SERVER_USERNAME may only contain letters, digits, '.', '_' and '-' (max 64)"
 else
-  ok "OPENCODE_SERVER_USERNAME=$OPENCODE_SERVER_USERNAME"
+  ok "ROCKY_SERVER_USERNAME=$ROCKY_SERVER_USERNAME"
 fi
 
 # --- Dynatrace platform -----------------------------------------------------
@@ -89,10 +88,10 @@ case "$DTCTL_SAFETY_LEVEL" in
 esac
 
 # --- Network ----------------------------------------------------------------
-if [[ ! "$OPENCODE_PORT" =~ ^[0-9]{1,5}$ ]] || ((OPENCODE_PORT < 1 || OPENCODE_PORT > 65535)); then
-  fail "OPENCODE_PORT must be a port number (got '$OPENCODE_PORT')"
+if [[ ! "$ROCKY_PORT" =~ ^[0-9]{1,5}$ ]] || ((ROCKY_PORT < 1 || ROCKY_PORT > 65535)); then
+  fail "ROCKY_PORT must be a port number (got '$ROCKY_PORT')"
 else
-  ok "OPENCODE_PORT=$OPENCODE_PORT"
+  ok "ROCKY_PORT=$ROCKY_PORT"
 fi
 
 ALLOWED_ORIGINS="${ALLOWED_ORIGINS:-}"
@@ -117,12 +116,6 @@ if [[ -n "$ALLOWED_ORIGINS" ]]; then
   done
 fi
 
-case "$ROCKY_GATEWAY_ENABLED" in
-  true) ok "ROCKY_GATEWAY_ENABLED=true (OpenCode bound to loopback behind the Rocky gateway)" ;;
-  false) warn "ROCKY_GATEWAY_ENABLED=false: the raw OpenCode API (including terminal and configuration endpoints) is exposed to anyone with the password" ;;
-  *) fail "ROCKY_GATEWAY_ENABLED must be true or false" ;;
-esac
-
 # --- Workspace and logging ---------------------------------------------------
 if [[ "$WORKSPACE_PATH" != /* ]]; then
   fail "WORKSPACE_PATH must be an absolute path"
@@ -135,38 +128,37 @@ case "$LOG_LEVEL" in
   *) fail "LOG_LEVEL must be debug, info, warn or error" ;;
 esac
 
-# --- Model provider ------------------------------------------------------------
-OPENCODE_MODEL="${OPENCODE_MODEL:-}"
-OPENCODE_PROVIDER="${OPENCODE_PROVIDER:-}"
-if [[ -n "$OPENCODE_MODEL" && ! "$OPENCODE_MODEL" =~ ^[A-Za-z0-9._:@/-]{1,200}$ ]]; then
-  fail "OPENCODE_MODEL has an invalid format (expected provider/model)"
+# --- Claude Code ----------------------------------------------------------------
+ROCKY_MODEL="${ROCKY_MODEL:-}"
+model_re='^[][A-Za-z0-9._:@/-]{1,200}$'
+if [[ -n "$ROCKY_MODEL" && ! "$ROCKY_MODEL" =~ $model_re ]]; then
+  fail "ROCKY_MODEL has an invalid format (for example sonnet, opus or claude-sonnet-5-5)"
+elif [[ -n "$ROCKY_MODEL" ]]; then
+  ok "ROCKY_MODEL=$ROCKY_MODEL"
 fi
-if [[ -n "$OPENCODE_PROVIDER" && ! "$OPENCODE_PROVIDER" =~ ^[a-z0-9-]{1,64}$ ]]; then
-  fail "OPENCODE_PROVIDER has an invalid format"
+CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-${HOME:-/home/rocky}/.claude}"
+if [[ -n "${CLAUDE_CODE_OAUTH_TOKEN:-}" ]]; then
+  ok "Claude: CLAUDE_CODE_OAUTH_TOKEN is set (Claude subscription)"
+elif [[ -n "${ANTHROPIC_API_KEY:-}" || -n "${ANTHROPIC_AUTH_TOKEN:-}" ]]; then
+  ok "Claude: Anthropic API credential is set"
+elif [[ -n "${CLAUDE_CODE_USE_BEDROCK:-}" || -n "${CLAUDE_CODE_USE_VERTEX:-}" || -n "${CLAUDE_CODE_USE_FOUNDRY:-}" ]]; then
+  ok "Claude: cloud provider selected (Bedrock, Vertex AI or Foundry)"
+elif [[ -f "$CLAUDE_CONFIG_DIR/.credentials.json" ]]; then
+  ok "Claude: stored login found in $CLAUDE_CONFIG_DIR"
+else
+  warn "Claude is not signed in: run 'docker compose run --rm rocky-agent login', or set CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY"
 fi
-provider="$OPENCODE_PROVIDER"
-if [[ -z "$provider" && "$OPENCODE_MODEL" == */* ]]; then provider="${OPENCODE_MODEL%%/*}"; fi
-case "$provider" in
-  "") warn "No model provider selected (OPENCODE_PROVIDER/OPENCODE_MODEL); OpenCode will use its default" ;;
-  anthropic) [[ -n "${ANTHROPIC_API_KEY:-}" ]] && ok "Model provider anthropic: credential set" || warn "Model provider anthropic: ANTHROPIC_API_KEY is not set (authentication required)" ;;
-  openai) [[ -n "${OPENAI_API_KEY:-}" ]] && ok "Model provider openai: credential set" || warn "Model provider openai: OPENAI_API_KEY is not set (authentication required)" ;;
-  opencode) [[ -n "${OPENCODE_API_KEY:-}" ]] && ok "Model provider opencode (Zen): credential set" || warn "Model provider opencode (Zen): OPENCODE_API_KEY is not set; only free models are available" ;;
-  amazon-bedrock)
-    [[ -n "${AWS_REGION:-}" ]] || warn "Model provider amazon-bedrock: AWS_REGION is not set"
-    if [[ -z "${AWS_ACCESS_KEY_ID:-}" && -z "${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI:-}" && -z "${AWS_WEB_IDENTITY_TOKEN_FILE:-}" ]]; then
-      warn "Model provider amazon-bedrock: no AWS credentials or task role detected"
-    else
-      ok "Model provider amazon-bedrock: AWS credentials available"
-    fi
-    ;;
-  *) ok "Model provider $provider selected" ;;
+case "${ROCKY_SUBPROCESS_ENV_SCRUB:-true}" in
+  1 | true | yes | on) ok "ROCKY_SUBPROCESS_ENV_SCRUB on (credentials removed from commands the agent runs)" ;;
+  *) warn "ROCKY_SUBPROCESS_ENV_SCRUB is off: commands the agent runs can read Claude credentials" ;;
 esac
 
 # --- Summary -------------------------------------------------------------------
 printf 'Environment variables (sensitive values hidden):\n'
-for name in DT_PLATFORM_URL DT_PLATFORM_TOKEN OPENCODE_SERVER_USERNAME OPENCODE_SERVER_PASSWORD OPENCODE_PORT \
-  OPENCODE_MODEL OPENCODE_PROVIDER OPENCODE_API_KEY ANTHROPIC_API_KEY OPENAI_API_KEY AWS_REGION AWS_ACCESS_KEY_ID \
-  AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN WORKSPACE_PATH LOG_LEVEL NODE_ENV ALLOWED_ORIGINS; do
+for name in DT_PLATFORM_URL DT_PLATFORM_TOKEN ROCKY_SERVER_USERNAME ROCKY_SERVER_PASSWORD ROCKY_PORT ROCKY_MODEL \
+  CLAUDE_CODE_OAUTH_TOKEN ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL CLAUDE_CODE_USE_BEDROCK \
+  CLAUDE_CODE_USE_VERTEX AWS_REGION AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN \
+  WORKSPACE_PATH LOG_LEVEL NODE_ENV ALLOWED_ORIGINS; do
   value="${!name:-}"
   if [[ -z "$value" ]]; then
     printf '  %-26s (unset)\n' "$name"

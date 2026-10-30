@@ -8,7 +8,7 @@ locals {
   secrets = concat(
     [
       { name = "DT_PLATFORM_TOKEN", valueFrom = var.dt_platform_token_secret_arn },
-      { name = "OPENCODE_SERVER_PASSWORD", valueFrom = var.server_password_secret_arn },
+      { name = "ROCKY_SERVER_PASSWORD", valueFrom = var.server_password_secret_arn },
     ],
     var.model_api_key_secret_arn == "" ? [] : [{ name = var.model_api_key_env, valueFrom = var.model_api_key_secret_arn }],
   )
@@ -218,10 +218,10 @@ resource "aws_ecs_task_definition" "this" {
       portMappings           = [{ containerPort = local.container_port, protocol = "tcp" }]
       environment = [
         { name = "DT_PLATFORM_URL", value = var.dt_platform_url },
-        { name = "OPENCODE_SERVER_USERNAME", value = "opencode" },
-        { name = "OPENCODE_PORT", value = tostring(local.container_port) },
-        { name = "OPENCODE_PROVIDER", value = var.opencode_provider },
-        { name = "OPENCODE_MODEL", value = var.opencode_model },
+        { name = "ROCKY_SERVER_USERNAME", value = "rocky" },
+        { name = "ROCKY_PORT", value = tostring(local.container_port) },
+        { name = "ROCKY_MODEL", value = var.claude_model },
+        { name = "CLAUDE_CODE_USE_BEDROCK", value = var.enable_bedrock ? "1" : "" },
         { name = "AWS_REGION", value = data.aws_region.current.region },
         { name = "NODE_ENV", value = "production" },
         { name = "LOG_LEVEL", value = "info" },

@@ -36,7 +36,7 @@ export function indexPrefix(ownerId: string): string {
 }
 
 // A new snapshot ID per save keeps snapshots append-only: saving the same
-// OpenCode session again creates another immutable snapshot.
+// runtime session again creates another immutable snapshot.
 export function newSavedId(openCodeSessionId: string, savedAt: Date): string {
   const stamp = savedAt.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}Z$/, "Z");
   const base = openCodeSessionId.replace(/[^A-Za-z0-9_-]/g, "").slice(0, 80) || "session";

@@ -2,7 +2,6 @@ import type { ConnectionRef, ConnectionTestResult } from "../models/connection";
 import type {
   OcMessage,
   OcPermissionRequest,
-  OcProviderList,
   OcSession,
   OcSessionStatus,
   RuntimePolicy,
@@ -16,12 +15,12 @@ export interface SessionSnapshot {
   status: Record<string, OcSessionStatus>;
   permissions: OcPermissionRequest[];
   children: OcSession[];
+  todos?: Todo[];
 }
 
-export interface FileDiff {
+// A file the agent wrote or edited in the workspace.
+export interface Artifact {
   file: string;
-  additions?: number;
-  deletions?: number;
 }
 
 export interface Todo {
@@ -42,7 +41,6 @@ export function runtimeApi(connection: ConnectionRef) {
     status: (signal?: AbortSignal) => op<RuntimeStatus>(connection, "status", {}, signal),
     refreshStatus: () => op<{ status: string }>(connection, "refreshStatus"),
     health: () => op<{ healthy: boolean; version: string }>(connection, "health"),
-    providers: () => op<OcProviderList>(connection, "providers"),
     policy: () => op<RuntimePolicy>(connection, "policy"),
     getSessionPolicy: (sessionId: string) => op<SessionPolicy>(connection, "getSessionPolicy", { sessionId }),
     setSessionPolicy: (sessionId: string, overlay: string) => op<SessionPolicy>(connection, "setSessionPolicy", { sessionId, overlay }),
@@ -51,9 +49,9 @@ export function runtimeApi(connection: ConnectionRef) {
     getSession: (sessionId: string) => op<OcSession>(connection, "getSession", { sessionId }),
     renameSession: (sessionId: string, title: string) => op<OcSession>(connection, "renameSession", { sessionId, title }),
     deleteSession: (sessionId: string) => op<boolean>(connection, "deleteSession", { sessionId }),
-    prompt: (sessionId: string, text: string) => op<null>(connection, "prompt", { sessionId, text }),
+    prompt: (sessionId: string, text: string) => op<{ accepted: boolean; messageID: string }>(connection, "prompt", { sessionId, text }),
     abort: (sessionId: string) => op<boolean>(connection, "abort", { sessionId }),
-    diff: (sessionId: string) => op<FileDiff[]>(connection, "diff", { sessionId }),
+    artifacts: (sessionId: string) => op<Artifact[]>(connection, "artifacts", { sessionId }),
     todo: (sessionId: string) => op<Todo[]>(connection, "todo", { sessionId }),
     replyPermission: (permissionId: string, reply: "once" | "reject", message?: string) =>
       op<boolean>(connection, "replyPermission", { permissionId, reply, message }),

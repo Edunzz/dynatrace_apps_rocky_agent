@@ -45,7 +45,7 @@ docker compose -f deploy/local/docker-compose.ci.yml down -v
 | Input | Where | How to verify |
 |---|---|---|
 | Node.js base image | `agent-runtime/Dockerfile` (`NODE_IMAGE`) | Resolve the new digest from the registry |
-| OpenCode | `OPENCODE_VERSION` | Re-run the end-to-end tests; check the OpenAPI document for route changes |
+| Claude Code | `CLAUDE_CODE_VERSION`, `CLAUDE_CODE_SHA256_AMD64`, `CLAUDE_CODE_SHA256_ARM64` | Take the checksums from the signed `manifest.json` of the release; re-capture `tests/fixtures/claude-stream` and re-run the end-to-end tests to catch event format changes |
 | dtctl | `DTCTL_VERSION`, `DTCTL_SHA256_*` | Digests from the release `checksums.txt` |
 | draw.io Desktop | `DRAWIO_VERSION`, `DRAWIO_SHA256_*` | Digests from `Files-SHA256-Hashes.txt` |
 | Skills | `DT_SKILLS_REF`, `RCA_SKILLS_REF` | Review the upstream diff; container tests check discovery |

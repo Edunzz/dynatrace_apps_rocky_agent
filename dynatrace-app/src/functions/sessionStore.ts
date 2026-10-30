@@ -27,6 +27,7 @@ import type { ResolvedConnection } from "./connections";
 import type { PlatformDeps } from "./deps";
 import { AppFunctionError } from "./envelope";
 import { callRuntime } from "./runtimeClient";
+import { buildOperation } from "./runtimeOperations";
 
 export const MAX_MARKDOWN_CHARS = 900_000;
 export const DELETE_CONFIRMATION = "DELETE";
@@ -70,14 +71,14 @@ interface Exported {
 
 async function exportConversation(connection: ResolvedConnection, sessionId: string, deps: PlatformDeps): Promise<Exported> {
   const { runtime } = connection;
-  const session = (await callRuntime<OcSession>(runtime, { method: "GET", path: `/session/${sessionId}` }, deps.fetch)).data;
-  const messages = (await callRuntime<OcMessage[]>(runtime, { method: "GET", path: `/session/${sessionId}/message` }, deps.fetch)).data ?? [];
+  const session = (await callRuntime<OcSession>(runtime, buildOperation("getSession", { sessionId }), deps.fetch)).data;
+  const messages = (await callRuntime<OcMessage[]>(runtime, buildOperation("messages", { sessionId }), deps.fetch)).data ?? [];
   let dynatraceEnvironment = "";
   try {
-    const status = await callRuntime<{ dynatrace?: { environmentHost?: string } }>(runtime, { method: "GET", path: "/rocky/v1/status" }, deps.fetch);
+    const status = await callRuntime<{ dynatrace?: { environmentHost?: string } }>(runtime, buildOperation("status", {}), deps.fetch);
     dynatraceEnvironment = status.data?.dynatrace?.environmentHost ?? "";
   } catch {
-    // Without the gateway the environment is simply not recorded.
+    // Without a status answer the environment is simply not recorded.
   }
   const lastAssistant = [...messages].reverse().find((m) => m.info.role === "assistant");
   const modelProvider = lastAssistant?.info.role === "assistant" ? (lastAssistant.info.providerID ?? "") : "";
@@ -237,7 +238,7 @@ export async function readSaved(params: Record<string, unknown>, deps: PlatformD
   if (!snapshot) throw new AppFunctionError("not_found", "The saved session does not exist.", { status: 404 });
   const markdown = asText(snapshot.markdown_content, "");
   const contentSha256 = asText(snapshot.content_sha256, "");
-  const original = /\| OpenCode session \| ([^|]+) \|/.exec(markdown)?.[1]?.trim() ?? "";
+  const original = /\| (?:Runtime|OpenCode) session \| ([^|]+) \|/.exec(markdown)?.[1]?.trim() ?? "";
   return {
     savedId,
     title: asText(index?.display_title, asText(snapshot.title, savedId)),

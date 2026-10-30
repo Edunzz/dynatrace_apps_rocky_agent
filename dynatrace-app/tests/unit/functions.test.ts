@@ -1,13 +1,13 @@
-import { MIN_OPENCODE_VERSION, testConnection } from "../../src/functions/connectionTest";
+import { MIN_CLAUDE_CODE_VERSION, testConnection } from "../../src/functions/connectionTest";
 import { resolveConnection } from "../../src/functions/connections";
 import { AppFunctionError } from "../../src/functions/envelope";
 import { handleConnectionTest, handleRuntimeProxy, handleSessionStore } from "../../src/functions/handlers";
 import { callRuntime } from "../../src/functions/runtimeClient";
 import { buildOperation } from "../../src/functions/runtimeOperations";
-import { fakeRuntimeFetch, jsonResponse, memoryDeps, PERMISSION, SESSION } from "../fixtures";
+import { fakeRuntimeFetch, jsonResponse, memoryDeps, PERMISSION, SESSION, STATUS } from "../fixtures";
 
 const PASSWORD = "correct-password-123456";
-const RUNTIME = { baseUrl: "https://rocky.example.com", username: "opencode", password: PASSWORD, timeoutSeconds: 30 };
+const RUNTIME = { baseUrl: "https://rocky.example.com", username: "rocky", password: PASSWORD, timeoutSeconds: 30 };
 
 describe("runtime operation allowlist", () => {
   it("rejects unknown operations and arbitrary paths", () => {
@@ -19,38 +19,53 @@ describe("runtime operation allowlist", () => {
   it("validates IDs", () => {
     expect(() => buildOperation("getSession", { sessionId: "../pty" })).toThrow(/sessionId/);
     expect(() => buildOperation("replyPermission", { permissionId: "per_1/../x", reply: "once" })).toThrow();
+    expect(() => buildOperation("getSession", { sessionId: "ses_e7591e887ffen74WiJDeGcpqvK" })).toThrow(/sessionId/);
   });
 
   it("refuses permanent approvals", () => {
-    expect(() => buildOperation("replyPermission", { permissionId: "per_1", reply: "always" })).toThrow(/Permanent approvals/);
-    expect(buildOperation("replyPermission", { permissionId: "per_1", reply: "once" })).toEqual({
+    expect(() => buildOperation("replyPermission", { permissionId: PERMISSION.id, reply: "always" })).toThrow(/Permanent approvals/);
+    expect(buildOperation("replyPermission", { permissionId: PERMISSION.id, reply: "once" })).toEqual({
       method: "POST",
-      path: "/permission/per_1/reply",
+      path: `/rocky/v1/permissions/${PERMISSION.id}/reply`,
       body: { reply: "once" },
     });
   });
 
-  it("builds a text-only prompt", () => {
-    expect(buildOperation("prompt", { sessionId: SESSION.id, text: "hi", agent: "plan" })).toEqual({
+  it("builds a text-only prompt and drops anything else", () => {
+    expect(buildOperation("prompt", { sessionId: SESSION.id, text: "hi", agent: "plan", system: "x" })).toEqual({
       method: "POST",
-      path: `/session/${SESSION.id}/prompt_async`,
-      body: { parts: [{ type: "text", text: "hi" }], agent: "plan" },
+      path: `/rocky/v1/sessions/${SESSION.id}/prompt`,
+      body: { text: "hi" },
     });
     expect(() => buildOperation("prompt", { sessionId: SESSION.id, text: "" })).toThrow();
+  });
+
+  it("maps every operation to the Rocky API", () => {
+    for (const [name, params] of [
+      ["health", {}],
+      ["listSessions", {}],
+      ["sessionSnapshot", { sessionId: SESSION.id, limit: 30 }],
+      ["artifacts", { sessionId: SESSION.id }],
+      ["permissions", {}],
+    ] as const) {
+      expect(buildOperation(name, params).path).toMatch(/^\/rocky\/v1\//);
+    }
+    expect(() => buildOperation("diff", { sessionId: SESSION.id })).toThrow(AppFunctionError);
+    expect(() => buildOperation("providers", {})).toThrow(AppFunctionError);
   });
 });
 
 describe("runtime client", () => {
   it("sends basic auth and refuses redirects", async () => {
     const fetch = fakeRuntimeFetch();
-    await callRuntime(RUNTIME, { method: "GET", path: "/global/health" }, fetch);
+    await callRuntime(RUNTIME, { method: "GET", path: "/rocky/v1/health" }, fetch);
     const init = fetch.calls[0].init as RequestInit & { headers: Record<string, string> };
-    expect(init.headers.authorization).toBe(`Basic ${btoa(`opencode:${PASSWORD}`)}`);
+    expect(init.headers.authorization).toBe(`Basic ${btoa(`rocky:${PASSWORD}`)}`);
     expect(init.redirect).toBe("error");
   });
 
   it("maps 401 without leaking the password", async () => {
-    const error = await callRuntime({ ...RUNTIME, password: "wrong-password" }, { method: "GET", path: "/global/health" }, fakeRuntimeFetch()).catch((e: unknown) => e);
+    const error = await callRuntime({ ...RUNTIME, password: "wrong-password" }, { method: "GET", path: "/rocky/v1/health" }, fakeRuntimeFetch()).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(AppFunctionError);
     expect((error as AppFunctionError).code).toBe("authentication_failed");
     expect(JSON.stringify(error)).not.toContain("wrong-password");
@@ -73,13 +88,13 @@ describe("runtime client", () => {
 
 describe("connection resolution", () => {
   it("resolves an ad-hoc connection for testing before saving", async () => {
-    const resolved = await resolveConnection({ adHoc: { runtimeUrl: "https://rocky.example.com/", username: "opencode", password: PASSWORD } }, memoryDeps(fakeRuntimeFetch()));
+    const resolved = await resolveConnection({ adHoc: { runtimeUrl: "https://rocky.example.com/", username: "rocky", password: PASSWORD } }, memoryDeps(fakeRuntimeFetch()));
     expect(resolved.runtime.baseUrl).toBe("https://rocky.example.com");
     expect(resolved.connectionId).toBeNull();
   });
 
   it("rejects plain HTTP to remote hosts", async () => {
-    await expect(resolveConnection({ adHoc: { runtimeUrl: "http://rocky.example.com", username: "opencode", password: "x" } }, memoryDeps(fakeRuntimeFetch()))).rejects.toMatchObject({ code: "invalid_url" });
+    await expect(resolveConnection({ adHoc: { runtimeUrl: "http://rocky.example.com", username: "rocky", password: "x" } }, memoryDeps(fakeRuntimeFetch()))).rejects.toMatchObject({ code: "invalid_url" });
   });
 
   it("reads the owner-only secret for a saved connection", async () => {
@@ -94,7 +109,7 @@ describe("connection resolution", () => {
 
   it("requires the password for memory-only connections", async () => {
     const deps = memoryDeps(fakeRuntimeFetch(), {
-      connection: { displayName: "x", runtimeUrl: "https://rocky.example.com", username: "opencode", authMode: "memory-only" },
+      connection: { displayName: "x", runtimeUrl: "https://rocky.example.com", username: "rocky", authMode: "memory-only" },
     });
     await expect(resolveConnection({ connectionId: "conn-object-0001" }, deps)).rejects.toMatchObject({ code: "password_required" });
     const ok = await resolveConnection({ connectionId: "conn-object-0001", password: PASSWORD }, deps);
@@ -111,27 +126,27 @@ describe("connection resolution", () => {
 });
 
 describe("connection test", () => {
-  it("passes every step against a healthy runtime with the gateway", async () => {
+  it("passes every step against a healthy, signed-in runtime", async () => {
     const result = await testConnection(RUNTIME, memoryDeps(fakeRuntimeFetch()));
     expect(result.ok).toBe(true);
     expect(result.steps.map((s) => [s.id, s.status])).toEqual([
       ["url", "pass"],
       ["reachability", "pass"],
       ["authentication", "pass"],
-      ["health", "pass"],
-      ["version", "pass"],
-      ["gateway", "pass"],
+      ["agent", "pass"],
+      ["claude", "pass"],
       ["capabilities", "pass"],
     ]);
-    expect(result.opencodeVersion).toBe("1.19.5");
-    expect(MIN_OPENCODE_VERSION).toBe("1.19.0");
+    expect(result.agentVersion).toBe("2.1.308");
+    expect(result.runtimeVersion).toBe("0.2.0");
+    expect(MIN_CLAUDE_CODE_VERSION).toBe("2.1.300");
   });
 
   it("reports authentication failures and skips the rest", async () => {
     const result = await testConnection({ ...RUNTIME, password: "nope" }, memoryDeps(fakeRuntimeFetch()));
     expect(result.ok).toBe(false);
     expect(result.steps.find((s) => s.id === "authentication")?.status).toBe("fail");
-    expect(result.steps.find((s) => s.id === "health")?.status).toBe("skip");
+    expect(result.steps.find((s) => s.id === "claude")?.status).toBe("skip");
   });
 
   it("reports unreachable runtimes", async () => {
@@ -140,22 +155,37 @@ describe("connection test", () => {
     expect(result.steps.filter((s) => s.status === "skip")).toHaveLength(4);
   });
 
-  it("flags old or incompatible runtimes", async () => {
+  it("explains how to sign in when Claude is not signed in", async () => {
     const fetch = fakeRuntimeFetch({
-      "GET /global/health": () => jsonResponse(200, { healthy: true, version: "1.0.3" }),
-      "GET /rocky/v1/status": () => jsonResponse(404, { error: "route_not_allowed" }),
-      "GET /permission": () => jsonResponse(404, {}),
+      "GET /rocky/v1/status": () => jsonResponse(200, { ...STATUS, claude: { ...STATUS.claude, status: "authentication_required", authMethod: "none" } }),
     });
     const result = await testConnection(RUNTIME, memoryDeps(fetch));
-    expect(result.steps.find((s) => s.id === "version")?.status).toBe("warn");
-    expect(result.steps.find((s) => s.id === "gateway")?.status).toBe("warn");
+    const step = result.steps.find((s) => s.id === "claude");
+    expect(step?.status).toBe("fail");
+    expect(step?.detail).toContain("docker compose run --rm rocky-agent login");
+    expect(result.ok).toBe(false);
+  });
+
+  it("flags old or incompatible runtimes", async () => {
+    const fetch = fakeRuntimeFetch({
+      "GET /rocky/v1/health": () => jsonResponse(200, { healthy: true, version: "0.2.0", agent: { version: "2.0.1" } }),
+      "GET /rocky/v1/permissions": () => jsonResponse(404, {}),
+    });
+    const result = await testConnection(RUNTIME, memoryDeps(fetch));
+    expect(result.steps.find((s) => s.id === "agent")?.status).toBe("warn");
     expect(result.steps.find((s) => s.id === "capabilities")?.status).toBe("fail");
     expect(result.ok).toBe(false);
+  });
+
+  it("fails when the runtime cannot run Claude Code", async () => {
+    const fetch = fakeRuntimeFetch({ "GET /rocky/v1/health": () => jsonResponse(200, { healthy: true, version: "0.2.0", agent: { version: null } }) });
+    const result = await testConnection(RUNTIME, memoryDeps(fetch));
+    expect(result.steps.find((s) => s.id === "agent")?.status).toBe("fail");
   });
 });
 
 describe("handlers", () => {
-  it("returns a combined session snapshot", async () => {
+  it("returns the session snapshot in one call", async () => {
     const result = await handleRuntimeProxy(
       { connection: { connectionId: "conn-object-0001" }, operation: "sessionSnapshot", params: { sessionId: SESSION.id, limit: 30 } },
       memoryDeps(fakeRuntimeFetch()),
@@ -170,7 +200,7 @@ describe("handlers", () => {
   });
 
   it("never throws and never echoes credentials", async () => {
-    const result = await handleConnectionTest({ connection: { adHoc: { runtimeUrl: "notaurl", username: "opencode", password: "super-secret-value" } } }, memoryDeps(fakeRuntimeFetch()));
+    const result = await handleConnectionTest({ connection: { adHoc: { runtimeUrl: "notaurl", username: "rocky", password: "super-secret-value" } } }, memoryDeps(fakeRuntimeFetch()));
     expect(result.ok).toBe(false);
     expect(JSON.stringify(result)).not.toContain("super-secret-value");
     expect(await handleRuntimeProxy("nonsense", memoryDeps(fakeRuntimeFetch()))).toMatchObject({ ok: false, error: { code: "invalid_payload" } });

@@ -5,8 +5,8 @@ kind: Kustomization
 resources:
   - ../../base
 images:
-  - name: ghcr.io/edunzz/dynatrace_apps_rocky_agent
-    newTag: "0.1.0"
+  - name: docker.io/edunzz/rocky-agent
+    newTag: "0.2.0"
     # digest: sha256:<digest>   # prefer pinning by digest
 patches:
   - target:

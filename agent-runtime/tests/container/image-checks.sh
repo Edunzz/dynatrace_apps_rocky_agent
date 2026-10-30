@@ -13,16 +13,18 @@ shell() { docker run --rm --entrypoint bash "$IMAGE" -c "$1"; }
 uid="$(docker run --rm --entrypoint id "$IMAGE" -u)"
 [[ "$uid" == "10001" ]] && pass "runs as uid 10001" || fail "runs as uid $uid"
 
-# Required tools; Claude Code must not be installed.
-if shell 'opencode --version && dtctl version && python3 --version && git --version && jq --version && curl --version >/dev/null && unzip -v >/dev/null && ssh -V 2>&1 && test -x /usr/bin/tini'; then
+# Required tools; OpenCode is gone.
+if shell 'claude --version && dtctl version && python --version && python3 --version && git --version && jq --version && rg --version >/dev/null && curl --version >/dev/null && unzip -v >/dev/null && ssh -V 2>&1 && test -x /usr/bin/tini'; then
   pass "required tools installed"
 else
   fail "required tools missing"
 fi
-if shell '! command -v claude >/dev/null && ! ls /usr/local/lib/node_modules | grep -qi claude'; then
-  pass "Claude Code is not installed"
+version="$(shell 'claude --version' | awk '{print $1}')"
+[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] && pass "Claude Code $version" || fail "Claude Code version: '$version'"
+if shell '! command -v opencode >/dev/null && ! ls /usr/local/lib/node_modules | grep -qi opencode'; then
+  pass "OpenCode is not installed"
 else
-  fail "Claude Code found in the image"
+  fail "OpenCode found in the image"
 fi
 
 # Headless draw.io exporter (default build).
@@ -34,12 +36,16 @@ if shell 'test -x /usr/local/bin/drawio'; then
   fi
 fi
 
-# Protected files are read-only for the runtime user.
-if shell 'touch /opt/rocky/policy/AGENTS.md 2>/dev/null || echo x >> /opt/rocky/opencode/opencode.json 2>/dev/null'; then
-  fail "/opt/rocky is writable by the runtime user"
+# Protected files are read-only for the runtime user; managed settings are root-owned.
+if shell 'touch /opt/rocky/policy/AGENTS.md 2>/dev/null || echo x >> /etc/claude-code/managed-settings.json 2>/dev/null'; then
+  fail "policy or managed settings are writable by the runtime user"
 else
-  pass "/opt/rocky is read-only for the runtime user"
+  pass "policy and managed settings are read-only for the runtime user"
 fi
+owner="$(shell 'stat -c "%U %a" /etc/claude-code/managed-settings.json')"
+[[ "$owner" == "root 644" ]] && pass "managed settings owned by root (0644)" || fail "managed settings: $owner"
+shell 'jq -e ".allowManagedPermissionRulesOnly == true and .permissions.disableBypassPermissionsMode == \"disable\"" /etc/claude-code/managed-settings.json' >/dev/null &&
+  pass "managed settings lock permission rules" || fail "managed settings content"
 
 # Skill inventory.
 count="$(docker run --rm --entrypoint jq "$IMAGE" -r '.official.skills | length' /opt/rocky/skills-manifest.json)"
@@ -59,18 +65,24 @@ if [[ -n "$secret_env" ]]; then
 else
   pass "no secret values in image environment"
 fi
-if docker history --no-trunc "$IMAGE" | grep -E -q 'DT_PLATFORM_TOKEN=|OPENCODE_SERVER_PASSWORD=|API_KEY='; then
+if docker history --no-trunc "$IMAGE" | grep -E -q 'DT_PLATFORM_TOKEN=|ROCKY_SERVER_PASSWORD=|CLAUDE_CODE_OAUTH_TOKEN=|API_KEY='; then
   fail "image history references secret build values"
 else
   pass "no secret build values in image history"
 fi
+
+# Sign-in helpers.
+out="$(docker run --rm "$IMAGE" auth-status 2>&1)" && status=0 || status=$?
+[[ "$status" != 0 ]] && pass "auth-status reports no stored login ($status)" || fail "auth-status without credentials: $out"
+out="$(docker run --rm "$IMAGE" not-a-command 2>&1)" && status=0 || status=$?
+[[ "$status" == 2 ]] && grep -q 'Use login, setup-token' <<<"$out" && pass "unknown commands are rejected" || fail "unknown command: $status $out"
 
 # Startup validation.
 out="$(docker run --rm "$IMAGE" 2>&1 || true)"
 grep -q 'DT_PLATFORM_URL is required' <<<"$out" && pass "missing variables are rejected" || fail "missing variables were not rejected"
 
 out="$(docker run --rm -e NODE_ENV=production -e DT_PLATFORM_URL=https://rocky-ci.invalid \
-  -e DT_PLATFORM_TOKEN=ci-placeholder-not-a-real-token -e OPENCODE_SERVER_PASSWORD=edunzzxgundam79 "$IMAGE" 2>&1 || true)"
+  -e DT_PLATFORM_TOKEN=ci-placeholder-not-a-real-token -e ROCKY_SERVER_PASSWORD=edunzzxgundam79 "$IMAGE" 2>&1 || true)"
 if grep -q 'development default' <<<"$out" && grep -q 'refusing to start' <<<"$out"; then
   pass "default password rejected in production"
 else

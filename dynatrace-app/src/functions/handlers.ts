@@ -16,31 +16,9 @@ function asRecord(value: unknown): Record<string, unknown> {
   throw new AppFunctionError("invalid_payload", "The request payload must be an object.");
 }
 
-export interface SessionSnapshot {
-  messages: unknown;
-  status: unknown;
-  permissions: unknown;
-  children: unknown;
-}
-
 export function handleRuntimeProxy(payload: unknown, deps: PlatformDeps): Promise<FunctionResult<unknown>> {
   return run(async () => {
     const input = asRecord(payload);
-    if (input.operation === "sessionSnapshot") {
-      // One function call per chat poll: messages, session status, pending
-      // permissions and child (subagent) sessions, whose permission requests
-      // carry the child session ID.
-      const params = input.params && typeof input.params === "object" ? (input.params as Record<string, unknown>) : {};
-      const requests = [
-        buildOperation("messages", { sessionId: params.sessionId, limit: params.limit }),
-        buildOperation("sessionStatus", {}),
-        buildOperation("permissions", {}),
-        buildOperation("children", { sessionId: params.sessionId }),
-      ];
-      const { runtime } = await resolveConnection(input.connection, deps);
-      const [messages, status, permissions, children] = await Promise.all(requests.map((r) => callRuntime(runtime, r, deps.fetch)));
-      return { messages: messages.data, status: status.data, permissions: permissions.data, children: children.data } satisfies SessionSnapshot;
-    }
     const request = buildOperation(input.operation, input.params);
     const { runtime } = await resolveConnection(input.connection, deps);
     return (await callRuntime(runtime, request, deps.fetch)).data;

@@ -48,7 +48,7 @@ describe("ConnectionTestResults", () => {
       <ConnectionTestResults
         result={{
           ok: false,
-          opencodeVersion: null,
+          agentVersion: null,
           runtimeVersion: null,
           gateway: false,
           capabilities: [],
@@ -82,7 +82,7 @@ describe("PermissionCard", () => {
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Approve once" }));
     });
-    expect(onReply).toHaveBeenCalledWith("per_1", "once");
+    expect(onReply).toHaveBeenCalledWith(PERMISSION.id, "once");
   });
 });
 

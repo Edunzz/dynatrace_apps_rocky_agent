@@ -1,7 +1,8 @@
 name: release
 
-# Publishes a versioned release when a tag such as v0.1.0 is pushed:
-#   * multi-architecture runtime image on GHCR (never tagged latest)
+# Publishes a versioned release when a tag such as v0.2.0 is pushed:
+#   * multi-architecture runtime image on Docker Hub (edunzz/rocky-agent) and
+#     GHCR (never tagged latest)
 #   * SLSA provenance and SBOM attestations from BuildKit
 #   * keyless Sigstore signature of the image digest
 #   * SPDX SBOM and the built Dynatrace App attached to the GitHub release
@@ -17,8 +18,11 @@ concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
+# Docker Hub needs the repository variable DOCKERHUB_USERNAME and the secret
+# DOCKERHUB_TOKEN (a Docker Hub access token with Read & Write scope).
 env:
-  IMAGE: ghcr.io/edunzz/dynatrace_apps_rocky_agent
+  IMAGE: docker.io/edunzz/rocky-agent
+  GHCR_IMAGE: ghcr.io/edunzz/dynatrace_apps_rocky_agent
 
 jobs:
   image:
@@ -39,13 +43,19 @@ jobs:
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
         uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
         with:
-          images: ${{ env.IMAGE }}
+          images: |
+            ${{ env.IMAGE }}
+            ${{ env.GHCR_IMAGE }}
           flavor: latest=false
           tags: |
             type=semver,pattern={{version}}
@@ -69,7 +79,9 @@ jobs:
       - name: Sign the image digest (keyless)
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
-        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+        run: |
+          cosign sign --yes "${IMAGE}@${DIGEST}"
+          cosign sign --yes "${GHCR_IMAGE}@${DIGEST}"
 
   release:
     name: GitHub release
@@ -102,7 +114,8 @@ jobs:
         with:
           generate_release_notes: true
           body: |
-            Runtime image: `${{ env.IMAGE }}@${{ needs.image.outputs.digest }}`
+            Runtime image: `${{ env.IMAGE }}:${{ github.ref_name }}` (also on `${{ env.GHCR_IMAGE }}`)
+            Digest: `${{ needs.image.outputs.digest }}`
 
             Verify the signature:
             ```bash

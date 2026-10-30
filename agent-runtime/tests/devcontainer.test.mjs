@@ -88,4 +88,13 @@ describe("docker-compose.yml", () => {
     assert.match(compose, /cloudflare\/cloudflared:[\d.]+@sha256:[0-9a-f]{64}/);
     assert.match(compose, /"127\.0\.0\.1:4096:4096"/);
   });
+
+  it("pulls a versioned image from Docker Hub and keeps the Claude login in a volume", () => {
+    assert.match(compose, /image: \$\{ROCKY_IMAGE:-docker\.io\/edunzz\/rocky-agent:\d+\.\d+\.\d+\}/);
+    assert.doesNotMatch(compose, /:latest\b/);
+    assert.match(compose, /- rocky-home:\/home\/rocky/);
+    assert.doesNotMatch(compose, /^\s+build:/m, "building is opt-in through docker-compose.build.yml");
+    const build = readFileSync(join(repo, "docker-compose.build.yml"), "utf8");
+    assert.match(build, /context: \.\/agent-runtime/);
+  });
 });

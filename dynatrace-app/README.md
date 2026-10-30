@@ -10,7 +10,7 @@ sessions and saves selected conversations to Grail Resource Store.
 Browser (React, Strato)                         AppEngine (JavaScript runtime)
 ──────────────────────                          ──────────────────────────────
 Connection wizard ── app settings (owner-only, password as `secret`)
-Chat / sessions ──── functions.call ──▶ runtime-proxy    ──HTTPS──▶ Rocky gateway ─▶ OpenCode
+Chat / sessions ──── functions.call ──▶ runtime-proxy    ──HTTPS──▶ Rocky gateway ─▶ Claude Code
 Connection test ──── functions.call ──▶ connection-test  ──HTTPS──▶ Rocky gateway
 Saved sessions ───── functions.call ──▶ session-store    ──▶ Grail Resource Store + DQL
 ```
@@ -50,7 +50,7 @@ Saved sessions ───── functions.call ──▶ session-store    ──�
 
 * Values are RFC 4180 quoted and parsed with `CSVDQS` (Markdown column:
   `CSVDQS{1,1000000}`), a pattern verified against the Resource Store API.
-* Each save creates a new `<saved-id>` (`<opencode-session-id>-<UTC timestamp>`)
+* Each save creates a new `<saved-id>` (`<runtime-session-id>-<UTC timestamp>`)
   and uploads with `overwrite: false`, so snapshots cannot be replaced.
 * Save flow: export → keep user-visible content → drop hidden reasoning →
   truncate long tool payloads → redact secrets → preview → explicit

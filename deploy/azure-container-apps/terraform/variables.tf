@@ -17,7 +17,7 @@ variable "name" {
 variable "image" {
   description = "Container image pinned by version or digest (never latest)."
   type        = string
-  default     = "ghcr.io/edunzz/dynatrace_apps_rocky_agent:0.1.0"
+  default     = "docker.io/edunzz/rocky-agent:0.2.0"
   validation {
     condition     = !endswith(var.image, ":latest")
     error_message = "Pin the image to a version or digest."
@@ -50,19 +50,20 @@ variable "model_api_key_secret_name" {
 }
 
 variable "model_api_key_env" {
-  description = "ANTHROPIC_API_KEY, OPENAI_API_KEY or OPENCODE_API_KEY."
+  description = "Environment variable that receives the Claude credential: ANTHROPIC_API_KEY, or CLAUDE_CODE_OAUTH_TOKEN (Claude subscription, personal use only)."
   type        = string
   default     = "ANTHROPIC_API_KEY"
+
+  validation {
+    condition     = contains(["ANTHROPIC_API_KEY", "CLAUDE_CODE_OAUTH_TOKEN"], var.model_api_key_env)
+    error_message = "model_api_key_env must be ANTHROPIC_API_KEY or CLAUDE_CODE_OAUTH_TOKEN."
+  }
 }
 
-variable "opencode_provider" {
-  type    = string
-  default = "anthropic"
-}
-
-variable "opencode_model" {
-  type    = string
-  default = "anthropic/claude-sonnet-4-5"
+variable "claude_model" {
+  description = "Optional model alias (sonnet, opus) or full name; empty uses Claude Code's default."
+  type        = string
+  default     = ""
 }
 
 variable "external_ingress" {

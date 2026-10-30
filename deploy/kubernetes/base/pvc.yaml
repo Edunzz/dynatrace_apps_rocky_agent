@@ -1,5 +1,5 @@
-# Workspace for artifacts. OpenCode sessions themselves live in the pod's
-# ephemeral home directory and are lost when the pod is replaced.
+# Workspace for artifacts. Sessions and Claude Code transcripts live in the
+# pod's ephemeral home directory and are lost when the pod is replaced.
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:

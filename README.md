@@ -2,19 +2,19 @@
 
 **An AI agent for Dynatrace that you run yourself.** Ask for a root cause
 analysis, a log-quality review, an alert-quality notebook or a business
-dashboard from a Dynatrace app; the agent investigates with `dtctl` and the
-official Dynatrace skills, works read-only by default and asks before it
-changes anything.
+dashboard from a Dynatrace app; the agent ([Claude Code](https://code.claude.com))
+investigates with `dtctl` and the official Dynatrace skills, works read-only by
+default and asks before it changes anything.
 
 ## Getting started
 
 You will install the **app** in your Dynatrace environment (from GitHub
 Codespaces, nothing to install) and run the **agent runtime** on your computer
-with Docker. About 20 minutes, most of it waiting for builds.
+with Docker. About 15 minutes.
 
 **You need:** a Dynatrace SaaS environment where you can install apps and edit
 settings · a GitHub account · [Docker Desktop](https://www.docker.com/products/docker-desktop/) ·
-an Anthropic or OpenAI API key (optional: without one the agent uses free OpenCode Zen models).
+a Claude subscription (Pro, Max, Team or Enterprise) or an Anthropic API key.
 
 ### Step 1 — Create two platform tokens
 
@@ -70,15 +70,29 @@ Open `.env` in any editor and fill in:
 |---|---|
 | `DT_PLATFORM_URL` | `https://<environment-id>.apps.dynatrace.com` |
 | `DT_PLATFORM_TOKEN` | the **runtime token** from step 1 |
-| `OPENCODE_SERVER_PASSWORD` | a password you choose, **16 characters or more** |
-| `ANTHROPIC_API_KEY` | your key; or clear `OPENCODE_MODEL=` to use free models |
+| `ROCKY_SERVER_PASSWORD` | a password you choose, **16 characters or more** |
+
+Sign in to Claude (once; the login is kept in a Docker volume):
+
+```bash
+docker compose run --rm rocky-agent login
+```
+
+It prints an address. Open it in your browser, sign in with your Claude account
+and, if the page shows a code, paste it back into the terminal. With an
+Anthropic API key instead, skip this and set `ANTHROPIC_API_KEY` in `.env`.
 
 Then start it with a public HTTPS tunnel, so the app in Dynatrace can reach it:
 
 ```bash
-docker compose --profile tunnel up -d --build    # the first build takes ~10 minutes
-docker compose logs tunnel                        # copy the https://….trycloudflare.com address
+docker compose --profile tunnel up -d    # downloads the image from Docker Hub the first time
+docker compose logs tunnel               # copy the https://….trycloudflare.com address
 ```
+
+> [!NOTE]
+> A Claude subscription is for **your own** use: don't let other people use
+> the agent through your runtime. For a team, use an Anthropic API key or a
+> cloud provider ([details](agent-runtime/README.md#signing-in-to-claude)).
 
 ### Step 4 — Allow Dynatrace to call the tunnel (once)
 
@@ -90,13 +104,14 @@ you cannot edit it.)
 
 1. Open the app link from step 2.
 2. **New runtime connection**: Runtime URL = the `https://….trycloudflare.com`
-   address, Username = `opencode`, Password = your `OPENCODE_SERVER_PASSWORD`.
-3. **Test connection** → **Save connection**.
+   address, Username = `rocky`, Password = your `ROCKY_SERVER_PASSWORD`.
+3. **Test connection** (every step should pass, including *Claude sign-in*) →
+   **Save connection**.
 4. Pick a suggested prompt (or write your own) → **Let’s Rock**.
 
 **Stop:** `docker compose --profile tunnel down`. **Start again:** the same
-`up` command; the tunnel address changes each time, so edit the connection in
-the app with the new address.
+`up` command; your Claude login and sessions are kept, but the tunnel address
+changes each time, so edit the connection in the app with the new address.
 
 > [!WARNING]
 > The tunnel makes your runtime reachable from the Internet at a random
@@ -106,7 +121,8 @@ the app with the new address.
 **Other ways to run it:** everything on your computer with `dt-app dev` (no
 tunnel, [guide](docs/deployment/local.md#option-b-run-the-app-locally-with-dt-app-dev)) ·
 Docker on a server · Amazon ECS · Azure Container Apps · Kubernetes — see
-[Deployment targets](#deployment-targets).
+[Deployment targets](#deployment-targets). To build the image yourself instead
+of downloading it: `docker compose -f docker-compose.yml -f docker-compose.build.yml --profile tunnel up -d --build`.
 
 ---
 
@@ -122,7 +138,7 @@ Docker on a server · Amazon ECS · Azure Container Apps · Kubernetes — see
 [Environment variables](#environment-variables) · [Deployment targets](#deployment-targets) ·
 [Local development](#local-development) · [Dynatrace App installation](#dynatrace-app-installation) ·
 [Resource Store permissions](#resource-store-permissions) · [Platform token setup](#platform-token-setup) ·
-[Model providers](#model-provider-setup) · [Skills](#skills) · [AGENTS.md behavior](#agentsmd-behavior) ·
+[Claude sign-in](#claude-sign-in) · [Skills](#skills) · [AGENTS.md behavior](#agentsmd-behavior) ·
 [Sessions and retention](#ephemeral-and-saved-sessions) · [Troubleshooting](#troubleshooting) ·
 [Upgrades](#upgrade-procedure) · [Known limitations](#known-limitations)
 
@@ -130,17 +146,17 @@ Docker on a server · Amazon ECS · Azure Container Apps · Kubernetes — see
 
 | Component | Path | What it is |
 |---|---|---|
-| Agent runtime | [`agent-runtime/`](agent-runtime/README.md) | Non-root Debian container: OpenCode 1.19.5, dtctl 0.45.0, 36 official `dt-*` skills, the RCA skill, a draw.io skill, a headless draw.io exporter and the **Rocky gateway** |
+| Agent runtime | [`agent-runtime/`](agent-runtime/README.md) | Non-root Debian container: Claude Code 2.1.308, dtctl 0.45.0, 36 official `dt-*` skills, the RCA skill, a draw.io skill, a headless draw.io exporter and the **Rocky gateway**. Published as [`edunzz/rocky-agent`](https://hub.docker.com/r/edunzz/rocky-agent) on Docker Hub |
 | Dynatrace App | [`dynatrace-app/`](dynatrace-app/README.md) | React + Strato app with a connection wizard, status lights, chat, approvals and saved sessions |
 | Deployments | [`deploy/`](deploy/) | Docker Compose, ECS (Terraform, CloudFormation), Azure Container Apps (Bicep, Terraform), Kubernetes (Kustomize) |
 | Documentation | [`docs/`](docs/) | Implementation plan, security, deployment and operations guides |
 
-The **Rocky gateway** listens on port 4096 in front of `opencode serve`, which
-is bound to loopback. It authenticates clients, forwards only the OpenCode
-routes the app needs, blocks terminal, shell, configuration and credential
-routes, sanitizes request bodies, applies per-session policy overlays, records
-approvals as audit events and exposes `/rocky/v1/status` and
-`/rocky/v1/livez`.
+The **Rocky gateway** is the runtime's only network entry point (port 4096).
+It authenticates the app, stores sessions, starts Claude Code for each prompt
+(`claude -p`, resuming the session's conversation), turns its event stream into
+chat messages, and holds every tool approval until the user answers in the app.
+It also records approvals as audit events and exposes `/rocky/v1/status` and
+`/rocky/v1/livez`. Claude Code never listens on a port.
 
 ## Security warnings
 
@@ -151,8 +167,8 @@ approvals as audit events and exposes `/rocky/v1/status` and
   least 16 characters.
 * The platform token gives the agent the permissions of its service user.
   Create a **dedicated service user** with only the scopes you need.
-* Keep `ROCKY_GATEWAY_ENABLED=true`. Without the gateway, anyone with the
-  password can open terminals and change the OpenCode configuration.
+* A Claude subscription login belongs to one person. Anthropic does not allow
+  sharing it through a runtime other people use.
 * Secrets are injected at deploy time only. See [docs/security/secrets.md](docs/security/secrets.md)
   and the [threat model](docs/security/threat-model.md).
 
@@ -162,24 +178,21 @@ approvals as audit events and exposes `/rocky/v1/status` and
 |---|---|---|---|
 | `DT_PLATFORM_URL` | yes | | `https://<environment-id>.apps.dynatrace.com` |
 | `DT_PLATFORM_TOKEN` | yes | | Platform token (secret). Never leaves the container. |
-| `OPENCODE_SERVER_PASSWORD` | yes (production) | `edunzzxgundam79` outside production | Runtime password (secret), 16+ characters in production |
-| `OPENCODE_SERVER_USERNAME` | no | `opencode` | Runtime username |
-| `OPENCODE_PORT` | no | `4096` | Listening port |
-| `OPENCODE_MODEL` | no | OpenCode default | `provider/model`, for example `anthropic/claude-sonnet-4-5` |
-| `OPENCODE_PROVIDER` | no | | Provider prefix when `OPENCODE_MODEL` has none |
-| `OPENCODE_API_KEY` | no | | OpenCode Zen key (secret) |
-| `ANTHROPIC_API_KEY` | no | | Anthropic key (secret) |
-| `OPENAI_API_KEY` | no | | OpenAI key (secret) |
-| `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_SESSION_TOKEN` | no | | Amazon Bedrock; prefer a task role |
+| `ROCKY_SERVER_PASSWORD` | yes (production) | `edunzzxgundam79` outside production | Runtime password (secret), 16+ characters in production |
+| `ROCKY_SERVER_USERNAME` | no | `rocky` | Runtime username |
+| `ROCKY_PORT` | no | `4096` | Listening port |
+| `CLAUDE_CODE_OAUTH_TOKEN` | one Claude credential | | Claude subscription token from `setup-token` (secret, personal use) |
+| `ANTHROPIC_API_KEY` | one Claude credential | | Anthropic API key (secret) |
+| `CLAUDE_CODE_USE_BEDROCK`, `AWS_REGION`, … | one Claude credential | | Amazon Bedrock; prefer a task role |
+| `ROCKY_MODEL` | no | Claude Code default | Model alias (`sonnet`, `opus`) or full name |
 | `WORKSPACE_PATH` | no | `/workspace` | Agent workspace |
 | `LOG_LEVEL` | no | `info` | `debug`, `info`, `warn`, `error` |
 | `NODE_ENV` | no | `production` | `production`, `development`, `test` |
 | `ALLOWED_ORIGINS` | no | | HTTPS origins for direct browser access; `*` is rejected in production |
 | `DTCTL_SAFETY_LEVEL` | no | `readwrite-mine` | `readonly`, `readwrite-mine`, `readwrite-all` |
-| `ROCKY_GATEWAY_ENABLED` | no | `true` | `false` exposes the raw OpenCode API |
-| `ROCKY_CONSOLE_ENABLED` | no | `false` | Serve the OpenCode web console through the gateway |
-| `ROCKY_EXTRA_CONFIG_FILE` | no | | Extra providers or MCP servers (protected keys ignored) |
 
+More settings (timeouts, concurrency, removed tools, credential scrubbing) are
+listed in [agent-runtime/README.md](agent-runtime/README.md#environment-variables).
 Variables whose names contain `TOKEN`, `PASSWORD`, `SECRET`, `API_KEY`,
 `CREDENTIAL` or `AUTH` are never printed.
 
@@ -199,12 +212,12 @@ Variables whose names contain `TOKEN`, `PASSWORD`, `SECRET`, `API_KEY`,
 Running the published image on a server (secrets come from a file, not from shell history):
 
 ```bash
-install -m 600 /dev/null rocky.env && ${EDITOR:-vi} rocky.env
+install -m 600 /dev/null rocky.env && ${EDITOR:-vi} rocky.env   # include ANTHROPIC_API_KEY
 docker run --rm --name rocky-agent -p 127.0.0.1:4096:4096 --env-file rocky.env \
-  -v rocky-workspace:/workspace \
-  --read-only --tmpfs /tmp:size=512m --tmpfs /home/rocky:size=1g,uid=10001,gid=10001 \
+  -v rocky-workspace:/workspace -v rocky-home:/home/rocky \
+  --read-only --tmpfs /tmp:size=512m \
   --cap-drop ALL --security-opt no-new-privileges:true \
-  ghcr.io/edunzz/dynatrace_apps_rocky_agent:0.1.0
+  docker.io/edunzz/rocky-agent:0.2.0
 ```
 
 Then put an HTTPS reverse proxy in front of it and connect the app to its URL.
@@ -216,13 +229,13 @@ runtime.
 ## Local development
 
 ```bash
-# Runtime: gateway, scripts, draw.io skill (Node.js 24; jq for a few tests)
+# Runtime: gateway, translator, scripts, draw.io skill (Node.js 24; jq for a few tests)
 cd agent-runtime && npm test
 
 # App: types, lint, tests, build
 cd dynatrace-app && npm ci && npm run typecheck && npm run lint && npm test && npm run build
 
-# End to end with a mock model provider (no external LLM is called)
+# End to end: the real image with Claude Code and a mock Anthropic API (no model is called)
 docker build -t rocky-agent:ci agent-runtime
 docker compose -f deploy/local/docker-compose.ci.yml up -d
 bash agent-runtime/tests/container/compose-checks.sh
@@ -286,31 +299,33 @@ create it for a **dedicated service user**:
 The full lists are in [docs/dynatrace-setup.md](docs/dynatrace-setup.md#1-runtime-platform-token-dt_platform_token)
 and in the app under **Dynatrace platform token** (with copy buttons). The
 token is written to dtctl's config file (mode 0600) at startup and removed from
-the environment before OpenCode starts; `DTCTL_SAFETY_LEVEL` adds a client-side
-guard on top.
+the environment before Claude Code starts; `DTCTL_SAFETY_LEVEL` adds a
+client-side guard on top.
 
 Deploying the app without a browser login (Codespaces, CI) uses a **separate**
 platform token, `DT_APP_PLATFORM_TOKEN`, with `app-engine:apps:install`,
 `app-engine:apps:run` and `app-engine:apps:delete`.
 
-## Model provider setup
+## Claude sign-in
 
-The runtime password and the model credential are different secrets; the app
-shows their status separately (**Runtime** and **Model**).
+The runtime password and the Claude credential are different secrets; the app
+shows their status separately (**Runtime** and **Claude**).
 
-| Provider | `OPENCODE_PROVIDER` | Credential |
+| Option | How | Who may use the runtime |
 |---|---|---|
-| OpenCode Zen | `opencode` | `OPENCODE_API_KEY` (free models work without it) |
-| Anthropic | `anthropic` | `ANTHROPIC_API_KEY` |
-| OpenAI | `openai` | `OPENAI_API_KEY` |
-| Amazon Bedrock | `amazon-bedrock` | `AWS_REGION` + task role (or AWS keys) |
+| Claude subscription login | `docker compose run --rm rocky-agent login` (stored in the `rocky-home` volume) | You only |
+| Claude subscription token | `docker compose run --rm rocky-agent setup-token` → `CLAUDE_CODE_OAUTH_TOKEN` | You only |
+| Anthropic API key | `ANTHROPIC_API_KEY` | Your team |
+| Amazon Bedrock, Google Vertex AI, Microsoft Foundry | `CLAUDE_CODE_USE_BEDROCK=1` (or `_VERTEX`, `_FOUNDRY`) + provider settings | Your team |
 
-Model credentials are never stored by the app or in Grail.
+`docker compose run --rm rocky-agent auth-status` shows the credential in use.
+Claude credentials are never stored by the app or in Grail, and are removed from
+the environment of the commands the agent runs.
 
 ## Skills
 
 Installed at build time from pinned commits and copied to
-`/workspace/.opencode/skills/` at startup:
+`~/.claude/skills/` (the only skill location the runtime loads) at startup:
 
 * **All official `dt-*` skills** from [Dynatrace/dynatrace-for-ai](https://github.com/Dynatrace/dynatrace-for-ai) (36 at the pinned commit).
 * **`dt-custom-rca-jromero`** from [Edunzz/dynatrace_ai_skills_rca](https://github.com/Edunzz/dynatrace_ai_skills_rca). The build fails if that repository has no valid skill.
@@ -321,9 +336,9 @@ Installed at build time from pinned commits and copied to
 ## AGENTS.md behavior
 
 The protected baseline ([agent-runtime/AGENTS.md](agent-runtime/AGENTS.md)) is
-installed read-only and loaded into every session. It enforces read-only
-analysis by default, the confirmation protocol below, secret protection, TLS
-validation and auditing.
+installed read-only and added to the system prompt of every run. It enforces
+read-only analysis by default, the confirmation protocol below, secret
+protection, TLS validation and auditing.
 
 ```text
 Proposed action:
@@ -337,26 +352,30 @@ Requires confirmation: Yes
 The user answers `CONFIRM: Execute the described change`. A confirmation
 covers one operation and expires when it finishes.
 
-Enforcement does not rely on the prompt alone: OpenCode permission rules
-(injected with `OPENCODE_CONFIG_CONTENT`, which overrides any project
-`opencode.json`) ask before every non-read-only command, and the gateway
-refuses permanent ("always") approvals. Before starting a session, the app
-shows the baseline and lets the user add **restrictions** (an overlay kept in
-runtime memory). Statements that try to weaken the baseline are rejected.
+Enforcement does not rely on the prompt alone. Claude Code **managed settings**
+([agent-runtime/claude/managed-settings.json](agent-runtime/claude/managed-settings.json),
+installed root-owned in `/etc/claude-code/`) are the only source of permission
+rules: they allow read-only dtctl commands and writes to the artifact folders,
+deny access to credentials and runtime state, and every other command or edit
+asks the user in the app. Runs ignore settings, hooks and MCP servers from the
+workspace, and the gateway refuses permanent ("always") approvals. Before
+starting a session, the app shows the baseline and lets the user add
+**restrictions** (an overlay stored with the session). Statements that try to
+weaken the baseline are rejected.
 
 ## Ephemeral and saved sessions
 
-**Ephemeral session:** exists only inside the OpenCode runtime and is lost
-when the runtime is destroyed.
+**Ephemeral session:** lives in the runtime (conversation and messages) and is
+lost when the runtime's home volume is removed.
 
 **Saved session:** the user-visible conversation exported to Markdown, redacted
 and stored as an immutable tabular resource in Dynatrace Grail Resource Store.
 
 | | Ephemeral | Saved |
 |---|---|---|
-| Where | Runtime container (`~/.local/share/opencode`, workspace) | `/lookups/rocky-agent/sessions/<owner>/<id>` + index |
+| Where | Runtime home (`/home/rocky/.rocky`, `/home/rocky/.claude/projects`), workspace | `/lookups/rocky-agent/sessions/<owner>/<id>` + index |
 | Contents | Everything, including tool output and reasoning | User-visible messages and tool activity; reasoning removed; secrets redacted; long payloads truncated |
-| Lifetime | Until deleted or the runtime is destroyed | Until the user deletes it permanently |
+| Lifetime | Until deleted, or until the home volume is removed (cloud templates: until the task or pod is replaced) | Until the user deletes it permanently |
 | Changes | Continue, rename, delete | Rename the display title or delete; content is immutable |
 | Backup | None (use **Save to Dynatrace**) | Grail Resource Store retention and your Dynatrace backup policy |
 
@@ -365,12 +384,14 @@ and stored as an immutable tabular resource in Dynatrace Grail Resource Store.
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | Container exits with `environment validation failed` | Missing variable, default password in production, short password | Read the `[FAIL]` lines in the log |
+| **Claude: Not signed in** | No Claude credential | `docker compose run --rm rocky-agent login`, or set `CLAUDE_CODE_OAUTH_TOKEN` / `ANTHROPIC_API_KEY` |
+| **Claude: Sign-in rejected** | Expired login or revoked key | Sign in again or replace the key |
 | **Dynatrace: unavailable** | Network/DNS/TLS from the runtime | Check egress to `*.apps.dynatrace.com` |
 | **Dynatrace: authentication failed** | Token invalid, expired or wrong environment | Recreate the platform token; check `DT_PLATFORM_URL` |
-| **Model: authentication required** | Provider key missing | Set the provider credential |
 | App: *runtime could not be reached* | Host not allowlisted, private CA, private network | External requests allowlist, public certificate, EdgeConnect |
-| App: *authentication failed* | Wrong password | Edit the connection and re-enter the password |
-| `route_not_allowed` / `route_blocked` | Gateway allowlist | Expected for terminal/config routes |
+| App: *authentication failed* | Wrong username or password (the username is `rocky`) | Edit the connection and re-enter the password |
+| `session_busy` (409) | The agent is still working on that session | Wait, or **Stop generation** |
+| `route_not_allowed` | Not part of the Rocky API | Expected for anything outside `/rocky/v1` |
 | Saved session list empty | Missing `storage:files:read` or IAM path | See Resource Store permissions |
 
 More: [docs/operations.md](docs/operations.md).
@@ -380,7 +401,7 @@ More: [docs/operations.md](docs/operations.md).
 1. Read the [release notes](docs/release-notes.md).
 2. Save any ephemeral session you want to keep (**Save to Dynatrace**).
 3. Deploy the new image tag (or digest) and the new app version.
-4. Run the connection test. Saved sessions are unaffected; ephemeral sessions do not survive a runtime replacement.
+4. Run the connection test. Saved sessions are unaffected.
 
 Pinned inputs and how to bump them are listed in [CONTRIBUTING.md](CONTRIBUTING.md#updating-pinned-versions).
 
@@ -391,7 +412,6 @@ See the full list in [docs/implementation-plan.md](docs/implementation-plan.md#5
 * The agent and dtctl run as the same Unix user; permission rules and
   redaction protect the token, but the token's scopes are the real boundary.
 * App Functions cannot trust private CAs or skip TLS checks.
-* The OpenCode console opens in a new tab; it cannot be embedded.
 * IAM cannot restrict each user to their own `/lookups/rocky-agent/sessions/<owner>/` prefix.
 * One replica per runtime; sessions are not shared between replicas.
 * Deployment templates are validated statically in CI; they have not been
@@ -400,6 +420,8 @@ See the full list in [docs/implementation-plan.md](docs/implementation-plan.md#5
   started uses a Cloudflare quick tunnel (testing only, the address changes on
   every restart). The tunnel path has not been run end to end yet.
 * The Codespaces deployment script has been tested in dry-run mode only.
+* CI tests Claude Code against a mock API; signing in with a real Claude
+  account inside the container (`login`) has not been tested by this project.
 
 ## License
 

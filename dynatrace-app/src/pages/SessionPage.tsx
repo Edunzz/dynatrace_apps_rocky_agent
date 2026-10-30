@@ -4,7 +4,7 @@ import { FormField, Label, TextArea, TextInput } from "@dynatrace/strato-compone
 import { Flex } from "@dynatrace/strato-components/layouts";
 import { showToast } from "@dynatrace/strato-components/notifications";
 import { Text } from "@dynatrace/strato-components/typography";
-import { DeleteIcon, ExternalLinkIcon, SaveIcon, StopIcon } from "@dynatrace/strato-icons";
+import { DeleteIcon, SaveIcon, StopIcon } from "@dynatrace/strato-icons";
 import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useConnection } from "../app/ConnectionContext";
@@ -18,7 +18,7 @@ import { SavePreviewModal } from "../components/SavePreviewModal";
 import { SessionPolicyModal } from "../components/SessionPolicyModal";
 import { useSessionChat } from "../hooks/useSessionChat";
 import { errorMessage } from "../services/functions";
-import { type FileDiff, runtimeApi, type Todo } from "../services/runtime";
+import { type Artifact, runtimeApi, type Todo } from "../services/runtime";
 
 const panel: React.CSSProperties = {
   background: Console.surface,
@@ -31,7 +31,7 @@ export function SessionPage() {
   const { sessionId = "" } = useParams();
   const navigate = useNavigate();
   const { active, connectionRef, needsPassword, loading } = useConnection();
-  const { ephemeral, saved, status: runtimeStatus } = useRuntimeData();
+  const { ephemeral, saved } = useRuntimeData();
   const api = useMemo(() => (connectionRef ? runtimeApi(connectionRef) : null), [connectionRef]);
   const chat = useSessionChat(connectionRef, sessionId);
 
@@ -42,7 +42,7 @@ export function SessionPage() {
   const [sending, setSending] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [todos, setTodos] = useState<Todo[]>([]);
-  const [artifacts, setArtifacts] = useState<FileDiff[]>([]);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
   const [modal, setModal] = useState<"save" | "delete" | "policy" | null>(null);
 
   useEffect(() => {
@@ -53,12 +53,11 @@ export function SessionPage() {
   useEffect(() => {
     if (!api || !sessionId || chat.busy || !chat.initialized) return;
     api.todo(sessionId).then(setTodos).catch(() => setTodos([]));
-    api.diff(sessionId).then(setArtifacts).catch(() => setArtifacts([]));
+    api.artifacts(sessionId).then(setArtifacts).catch(() => setArtifacts([]));
   }, [api, sessionId, chat.busy, chat.initialized]);
 
   if (!loading && !active) return <Navigate to="/connect" replace />;
 
-  const consoleEnabled = runtimeStatus.data?.runtime.consoleEnabled === true;
   const statusChip =
     chat.status.type === "busy" ? (
       <Chip color="primary">Working</Chip>
@@ -144,16 +143,6 @@ export function SessionPage() {
             <Button onClick={() => setModal("policy")} disabled={!api}>
               Policy
             </Button>
-            <Button
-              disabled={!consoleEnabled || !active}
-              title={consoleEnabled ? "Opens the authenticated OpenCode console in a new tab" : "Console mode is disabled on this runtime"}
-              onClick={() => active && window.open(active.runtimeUrl, "_blank", "noopener,noreferrer")}
-            >
-              <Button.Prefix>
-                <ExternalLinkIcon />
-              </Button.Prefix>
-              Open OpenCode Console
-            </Button>
             <Button color="critical" onClick={() => setModal("delete")} disabled={!api}>
               <Button.Prefix>
                 <DeleteIcon />
@@ -188,14 +177,13 @@ export function SessionPage() {
           <section aria-label="Artifacts" style={panel}>
             <Text style={{ color: Console.green, fontFamily: Console.mono, fontSize: 12, letterSpacing: 1 }}>ARTIFACTS</Text>
             {artifacts.length === 0 ? (
-              <Text style={{ display: "block", color: Console.muted, fontSize: 13 }}>No files changed in the workspace yet.</Text>
+              <Text style={{ display: "block", color: Console.muted, fontSize: 13 }}>The agent has not written any files in this session yet.</Text>
             ) : (
               <ul style={{ margin: "8px 0 0", paddingLeft: 18, color: Console.text }}>
                 {artifacts.map((a) => (
                   <li key={a.file}>
                     <Text style={{ fontFamily: Console.mono, fontSize: 13, color: Console.text }}>
                       {a.file}
-                      {typeof a.additions === "number" ? ` (+${a.additions}/-${a.deletions ?? 0})` : ""}
                     </Text>
                   </li>
                 ))}

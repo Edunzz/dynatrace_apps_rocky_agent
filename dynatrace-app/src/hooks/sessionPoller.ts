@@ -29,7 +29,7 @@ export interface PollerOptions {
 
 type FetchSnapshot = (limit: number | undefined, signal: AbortSignal) => Promise<SessionSnapshot>;
 
-// Short-polling loop for one OpenCode session.
+// Short-polling loop for one runtime session.
 //
 // * The first poll loads the full history; later polls request the newest
 //   `pageLimit` messages and merge them by message/part ID (no duplicates).

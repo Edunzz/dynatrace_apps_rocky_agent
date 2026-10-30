@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Runtime checks against the CI compose environment (deploy/local/docker-compose.ci.yml).
+# Runtime checks against the CI compose environment (deploy/local/docker-compose.ci.yml):
+# the real image with Claude Code talking to the mock Anthropic API.
 # Requires the stack to be up; uses only the CI placeholder credentials.
 
 set -Eeuo pipefail
@@ -9,7 +10,8 @@ PASSWORD="${ROCKY_IT_PASSWORD:-ci-integration-password-0123}"
 failures=0
 pass() { printf 'PASS %s\n' "$1"; }
 fail() { printf 'FAIL %s\n' "$1"; failures=$((failures + 1)); }
-authed() { printf 'user = "opencode:%s"\n' "$PASSWORD" | curl -fsS --max-time 20 -K - "$@"; }
+authed() { printf 'user = "rocky:%s"\n' "$PASSWORD" | curl -fsS --max-time 20 -K - "$@"; }
+in_container() { "${COMPOSE[@]}" exec -T rocky-agent bash -c "$1"; }
 
 # Wait for the gateway and for Docker to report the container healthy.
 for _ in $(seq 1 90); do
@@ -26,38 +28,71 @@ for _ in $(seq 1 60); do
 done
 [[ "$health" == "healthy" ]] && pass "Docker HEALTHCHECK reports healthy" || fail "Docker health is '$health'"
 
-# Extended status: degraded Dynatrace mode, skills discovered, no secrets.
+# Extended status: Claude Code ready and signed in (mock key), degraded Dynatrace, skills, no secrets.
 status="$(authed "$URL/rocky/v1/status")"
-jq -e '.opencode.status == "ready"' <<<"$status" >/dev/null && pass "OpenCode ready" || fail "OpenCode not ready"
+jq -e '.agent.status == "ready" and (.agent.version | test("^[0-9]+\\.[0-9]+\\.[0-9]+$"))' <<<"$status" >/dev/null &&
+  pass "Claude Code ready ($(jq -r .agent.version <<<"$status"))" || fail "agent: $(jq -c .agent <<<"$status")"
+jq -e '.claude.status == "connected" and .claude.authMethod == "api_key"' <<<"$status" >/dev/null &&
+  pass "Claude credential detected" || fail "claude: $(jq -c .claude <<<"$status")"
 jq -e '.dynatrace.status == "unavailable"' <<<"$status" >/dev/null && pass "Dynatrace degraded mode reported as unavailable" || fail "unexpected Dynatrace status: $(jq -c .dynatrace <<<"$status")"
 jq -e '.dtctl.status == "ready"' <<<"$status" >/dev/null && pass "dtctl ready" || fail "dtctl not ready"
-jq -e '.skills.status == "installed" and .skills.count >= 21' <<<"$status" >/dev/null && pass "skills discoverable by OpenCode ($(jq .skills.count <<<"$status"))" || fail "skills: $(jq -c '.skills | {status, count, missing}' <<<"$status")"
+jq -e '.skills.status == "installed" and .skills.count >= 21' <<<"$status" >/dev/null && pass "skills installed for Claude Code ($(jq .skills.count <<<"$status"))" || fail "skills: $(jq -c '.skills | {status, count, missing}' <<<"$status")"
 jq -e '.workspace.status == "ready"' <<<"$status" >/dev/null && pass "workspace ready" || fail "workspace not ready"
 grep -q "$PASSWORD" <<<"$status" && fail "status leaks the password" || pass "status contains no password"
 
-# Secrets are not visible to agent processes.
-# OpenCode processes are identified by argv[0] (native binary) or argv[1] (npm
-# launcher run by node); matching on the command text would also match this
-# checker, whose environment comes from `docker exec`.
-leaks="$("${COMPOSE[@]}" exec -T rocky-agent bash -c '
-  found=0; checked=0
-  for p in /proc/[0-9]*; do
-    mapfile -d "" -t argv < "$p/cmdline" 2>/dev/null || continue
-    a0="${argv[0]##*/}"; a1="${argv[1]##*/}"
-    [[ "$a0" == opencode* || ( "$a0" == node && "$a1" == opencode* ) ]] || continue
-    checked=$((checked + 1))
-    if tr "\0" "\n" < "$p/environ" 2>/dev/null | grep -E -q "^(DT_PLATFORM_TOKEN=|OPENCODE_SERVER_PASSWORD=ci-integration)"; then found=1; fi
-  done
-  echo "$checked $found"')"
-if [[ "$leaks" =~ ^[1-9][0-9]*\ 0$ ]]; then
-  pass "OpenCode processes have neither the platform token nor the client password"
+# The gateway process holds neither the platform token nor the runtime password.
+gateway_env="$(in_container 'for p in /proc/[0-9]*; do
+  mapfile -d "" -t argv < "$p/cmdline" 2>/dev/null || continue
+  [[ "${argv[0]##*/}" == node && "${argv[1]}" == */gateway/server.mjs ]] || continue
+  tr "\0" "\n" < "$p/environ"
+done')"
+if [[ -n "$gateway_env" ]] && ! grep -E -q '^(DT_PLATFORM_TOKEN|ROCKY_SERVER_PASSWORD)=' <<<"$gateway_env"; then
+  pass "gateway environment has neither the platform token nor the runtime password"
 else
-  fail "OpenCode process environment check (processes checked, leak found): $leaks"
+  fail "gateway environment check (empty or leaking)"
 fi
-"${COMPOSE[@]}" exec -T rocky-agent bash -c 'stat -c "%a" ~/.config/dtctl/config' | grep -q '^600$' && pass "dtctl config is 0600" || fail "dtctl config permissions"
+in_container 'ls /tmp/rocky/.gateway-secret.* 2>/dev/null | wc -l' | grep -q '^0$' &&
+  pass "gateway secret file removed after startup" || fail "gateway secret file still present"
+in_container 'stat -c "%a" ~/.config/dtctl/config' | grep -q '^600$' && pass "dtctl config is 0600" || fail "dtctl config permissions"
+
+# A real Claude Code run with a tool approval.
+session="$(authed -X POST -H 'content-type: application/json' -d '{"title":"compose check"}' "$URL/rocky/v1/sessions" | jq -r .id)"
+authed -X POST -H 'content-type: application/json' -d '{"text":"please use bash"}' "$URL/rocky/v1/sessions/$session/prompt" >/dev/null
+permission=""
+for _ in $(seq 1 60); do
+  permission="$(authed "$URL/rocky/v1/sessions/$session/snapshot" | jq -r '.permissions[0].id // empty')"
+  [[ -n "$permission" ]] && break
+  sleep 2
+done
+[[ -n "$permission" ]] && pass "Claude Code asked for approval through the gateway" || fail "no approval request: $(authed "$URL/rocky/v1/sessions/$session/snapshot" | jq -c '.messages[-1]')"
+
+# While the run waits: the Claude Code process has no platform token or runtime password.
+claude_env="$(in_container 'for p in /proc/[0-9]*; do
+  mapfile -d "" -t argv < "$p/cmdline" 2>/dev/null || continue
+  [[ "${argv[0]##*/}" == claude ]] || continue
+  tr "\0" "\n" < "$p/environ"; echo ---
+done')"
+if [[ -n "$claude_env" ]] && ! grep -E -q '^(DT_PLATFORM_TOKEN|ROCKY_SERVER_PASSWORD)=' <<<"$claude_env"; then
+  pass "Claude Code environment has neither the platform token nor the runtime password"
+else
+  fail "Claude Code environment check (empty or leaking)"
+fi
+
+if [[ -n "$permission" ]]; then
+  authed -X POST -H 'content-type: application/json' -d '{"reply":"once"}' "$URL/rocky/v1/permissions/$permission/reply" >/dev/null
+  for _ in $(seq 1 60); do
+    state="$(authed "$URL/rocky/v1/sessions/$session/snapshot" | jq -r --arg s "$session" '.status[$s].type')"
+    [[ "$state" == "idle" ]] && break
+    sleep 2
+  done
+  marker="$(in_container 'cat /workspace/rocky-integration.txt 2>/dev/null || echo missing')"
+  [[ "$marker" == "rocky-integration scrubbed" ]] && pass "approved command ran without access to Claude credentials" ||
+    fail "approved command output: '$marker' (expected 'rocky-integration scrubbed')"
+fi
+authed -X DELETE "$URL/rocky/v1/sessions/$session" >/dev/null || true
 
 # RCA skill prerequisite gate inside the container (offline: no tenant access).
-gate="$("${COMPOSE[@]}" exec -T -w /workspace rocky-agent python3 .opencode/skills/dt-custom-rca-jromero/scripts/check_prereqs.py --offline --json || true)"
+gate="$("${COMPOSE[@]}" exec -T -w /workspace rocky-agent python /home/rocky/.claude/skills/dt-custom-rca-jromero/scripts/check_prereqs.py --offline --json || true)"
 for check in "Skills Dynatrace for AI" "Skill drawio" "draw.io Desktop (CLI)" "Python"; do
   state="$(jq -r --arg n "$check" '[.. | objects | select(.nombre? == $n) | .estado] | first // "missing"' <<<"$gate")"
   [[ "$state" == "OK" || "$state" == "AVISO" ]] && pass "RCA gate: $check = $state" || fail "RCA gate: $check = $state"
@@ -66,11 +101,12 @@ done
 # draw.io: build, validate and export a PNG headlessly.
 if "${COMPOSE[@]}" exec -T -w /workspace rocky-agent bash -c '
   set -e
+  skill=/home/rocky/.claude/skills/drawio
   cat > /tmp/spec.json <<EOF
 {"title":"CI diagram","nodes":[{"id":"a","label":"Service A","kind":"error","root":true},{"id":"b","label":"Service B","kind":"degraded"}],"edges":[{"source":"a","target":"b","kind":"failure"}],"legend":true}
 EOF
-  node .opencode/skills/drawio/scripts/drawio-build.mjs /tmp/spec.json -o artifacts/drawio/ci.drawio
-  node .opencode/skills/drawio/scripts/drawio-validate.mjs artifacts/drawio/ci.drawio
+  node "$skill/scripts/drawio-build.mjs" /tmp/spec.json -o artifacts/drawio/ci.drawio
+  node "$skill/scripts/drawio-validate.mjs" artifacts/drawio/ci.drawio
   drawio -x -f png -e -s 1 -b 10 -o artifacts/drawio/ci.png artifacts/drawio/ci.drawio >/dev/null
   head -c 8 artifacts/drawio/ci.png | od -An -tx1 | grep -q "89 50 4e 47"
 '; then

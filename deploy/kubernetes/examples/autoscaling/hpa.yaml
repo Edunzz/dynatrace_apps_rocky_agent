@@ -1,6 +1,6 @@
 # HorizontalPodAutoscaler EXAMPLE.
 #
-# WARNING: OpenCode sessions live inside one pod. With more than one replica,
+# WARNING: Rocky sessions live inside one pod. With more than one replica,
 # consecutive requests for the same session can land on a different pod and
 # fail. The Dynatrace App calls the runtime from App Functions without cookies,
 # so cookie-based sticky sessions do not help. Keep maxReplicas: 1 and scale

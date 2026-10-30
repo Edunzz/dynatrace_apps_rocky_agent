@@ -14,7 +14,7 @@ function toStored(item: { objectId: string; version: string; value?: Record<stri
     version: item.version,
     displayName: asText(v.displayName),
     runtimeUrl: asText(v.runtimeUrl),
-    username: asText(v.username, "opencode"),
+    username: asText(v.username, "rocky"),
     authMode: (v.authMode as AuthMode) ?? "settings-secret",
     credentialVaultId: (v.credentialVaultId as string | null) ?? null,
     tlsVerification: v.tlsVerification !== false,

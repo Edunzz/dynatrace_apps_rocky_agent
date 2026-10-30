@@ -73,7 +73,7 @@ export function conversationToMarkdown(session: OcSession, messages: OcMessage[]
     "",
     "| Field | Value |",
     "|---|---|",
-    `| OpenCode session | ${escapeCell(session.id)} |`,
+    `| Runtime session | ${escapeCell(session.id)} |`,
     `| Created | ${iso(session.time?.created)} |`,
     `| Saved | ${meta.savedAt ?? "not saved yet"} |`,
     `| Model | ${escapeCell(`${meta.modelProvider ?? "unknown"}/${meta.modelId ?? "unknown"}`)} |`,

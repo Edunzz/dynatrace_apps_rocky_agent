@@ -23,7 +23,7 @@ const VAULT_ID = /^CREDENTIALS_VAULT-[A-Z0-9]+$/;
 export function ConnectionForm({ existing, onSaved, onCancel }: ConnectionFormProps) {
   const [displayName, setDisplayName] = useState(existing?.displayName ?? "");
   const [runtimeUrl, setRuntimeUrl] = useState(existing?.runtimeUrl ?? "");
-  const [username, setUsername] = useState(existing?.username ?? "opencode");
+  const [username, setUsername] = useState(existing?.username ?? "rocky");
   const [password, setPassword] = useState("");
   const [authMode, setAuthMode] = useState<AuthMode>(existing?.authMode ?? "settings-secret");
   const [vaultId, setVaultId] = useState(existing?.credentialVaultId ?? "");
@@ -96,7 +96,7 @@ export function ConnectionForm({ existing, onSaved, onCancel }: ConnectionFormPr
       const value = draft();
       if (testResult?.ok) {
         value.lastSuccessfulConnection = new Date().toISOString();
-        value.runtimeVersion = testResult.runtimeVersion ?? testResult.opencodeVersion;
+        value.runtimeVersion = testResult.runtimeVersion ?? testResult.agentVersion;
         value.capabilities = testResult.capabilities;
       }
       let objectId: string;

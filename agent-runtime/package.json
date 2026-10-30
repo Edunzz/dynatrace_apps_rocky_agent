@@ -2,16 +2,16 @@
   "name": "rocky-agent-runtime",
   "version": "0.1.0",
   "private": true,
-  "description": "Rocky Agent runtime: OpenCode headless server with Dynatrace skills, dtctl and a hardened gateway.",
+  "description": "Rocky Agent runtime: Claude Code driven by a hardened gateway, with Dynatrace skills and dtctl.",
   "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=24"
   },
   "scripts": {
-    "start:gateway": "node src/optional-gateway/server.mjs",
+    "start:gateway": "node src/gateway/server.mjs",
     "test": "node --test --test-reporter=spec tests/*.test.mjs",
     "test:integration": "node --test --test-reporter=spec tests/integration/*.test.mjs",
-    "lint": "node --check src/optional-gateway/*.mjs && node --check skills/drawio/scripts/*.mjs"
+    "lint": "node --check src/gateway/*.mjs && node --check scripts/*.mjs && node --check skills/drawio/scripts/*.mjs"
   }
 }

@@ -8,10 +8,12 @@
 3. `validate-dynatrace.sh`: reachability, `dtctl auth whoami`, harmless
    `data record()` query → `/tmp/rocky/dynatrace-status.json`. Failure means
    **degraded mode**, not a crash.
-4. `DT_PLATFORM_TOKEN` is unset; pinned skills are copied to `/workspace/.opencode/skills/`.
-5. `opencode serve` starts on `127.0.0.1:4097` with a random internal password
-   and the inline baseline configuration; the gateway starts on `0.0.0.0:4096`.
-6. If either process exits, the container exits so the orchestrator restarts it.
+4. `DT_PLATFORM_TOKEN` is unset; pinned skills are copied to `~/.claude/skills/`.
+5. `prepare-claude.mjs` approves `ANTHROPIC_API_KEY` for print mode when it is set;
+   the log says whether a Claude credential is configured.
+6. The gateway starts on `0.0.0.0:4096` (the password is handed over in a file it
+   deletes at once). It runs Claude Code for each prompt; if the gateway exits,
+   the container exits so the orchestrator restarts it.
 
 ## Troubleshooting
 
@@ -28,19 +30,22 @@ password with `NODE_ENV=production`, a password shorter than 16 characters,
 ### Dynatrace shows "unavailable" or "authentication failed"
 
 ```bash
-curl -fsS -u "opencode:$PW" https://<runtime>/rocky/v1/status | jq .dynatrace
-curl -fsS -u "opencode:$PW" -X POST https://<runtime>/rocky/v1/status/refresh   # re-check (max once per minute)
+curl -fsS -u "rocky:$PW" https://<runtime>/rocky/v1/status | jq .dynatrace
+curl -fsS -u "rocky:$PW" -X POST https://<runtime>/rocky/v1/status/refresh   # re-check (max once per minute)
 ```
 
 `unavailable`: network, DNS or TLS from the runtime to Dynatrace.
 `authentication_failed`: the token is invalid, expired, revoked or for another environment.
 
-### The model never answers
+### The agent never answers
 
-* Status bar **Model: Authentication required** → set the provider credential.
-* OpenCode downloads provider SDKs and model metadata on first use; the
-  runtime needs outbound HTTPS to `registry.npmjs.org` and `models.dev`, or
-  pre-configured providers through `ROCKY_EXTRA_CONFIG_FILE`.
+* Status bar **Claude: Not signed in** → `docker compose run --rm rocky-agent login`,
+  or set `CLAUDE_CODE_OAUTH_TOKEN` / `ANTHROPIC_API_KEY`.
+* **Claude: Sign-in rejected** → the login expired or the key was revoked; sign in again.
+* The runtime needs outbound HTTPS to `api.anthropic.com` (or your cloud provider)
+  and `claude.ai` for subscription logins.
+* `docker compose logs rocky-agent | grep claude` shows Claude Code's errors (redacted).
+* An approval nobody answers is denied after `ROCKY_PERMISSION_TIMEOUT_MS` (15 minutes).
 
 ### The app cannot reach the runtime
 
@@ -101,10 +106,9 @@ Rollback: deploy the previous image digest and app version. Saved sessions use
 | Build argument | Default | Effect |
 |---|---|---|
 | `INSTALL_DRAWIO_DESKTOP` | `true` | Headless draw.io exporter (needed by the RCA skill for PNG) |
-| `OPENCODE_VERSION` | `1.19.5` | OpenCode version |
+| `CLAUDE_CODE_VERSION` | `2.1.308` | Claude Code version (with pinned digests, verified against the signed release manifest) |
 | `DTCTL_VERSION` | `0.45.0` | dtctl version (with pinned digests) |
 | `DT_SKILLS_REF`, `RCA_SKILLS_REF` | commit SHAs | Skill versions |
 
-The OpenCode x64 binary variant (AVX2 or baseline) is selected from the build
-machine's CPU. If you build on an AVX2 machine and run on hosts without AVX2,
-build on a host without AVX2 or use arm64.
+Claude Code ships one native binary per platform (`linux-x64`, `linux-arm64`);
+the published image covers both.

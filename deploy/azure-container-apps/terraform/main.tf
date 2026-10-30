@@ -130,24 +130,23 @@ resource "azurerm_container_app" "this" {
         secret_name = "dt-platform-token"
       }
       env {
-        name  = "OPENCODE_SERVER_USERNAME"
-        value = "opencode"
+        name  = "ROCKY_SERVER_USERNAME"
+        value = "rocky"
       }
       env {
-        name        = "OPENCODE_SERVER_PASSWORD"
+        name        = "ROCKY_SERVER_PASSWORD"
         secret_name = "server-password"
       }
       env {
         name        = var.model_api_key_env
         secret_name = "model-api-key"
       }
-      env {
-        name  = "OPENCODE_PROVIDER"
-        value = var.opencode_provider
-      }
-      env {
-        name  = "OPENCODE_MODEL"
-        value = var.opencode_model
+      dynamic "env" {
+        for_each = var.claude_model == "" ? [] : [var.claude_model]
+        content {
+          name  = "ROCKY_MODEL"
+          value = env.value
+        }
       }
       env {
         name  = "NODE_ENV"
