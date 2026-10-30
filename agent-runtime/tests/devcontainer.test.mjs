@@ -22,7 +22,7 @@ describe("dynatrace-app/scripts/deploy.sh (npm run deploy:token)", () => {
   it("deploys with the platform token and prints the app link", () => {
     const r = bash(deploy, { ROCKY_DEPLOY_DRY_RUN: "1", DT_APP_ENVIRONMENT_URL: "https://abc12345.apps.dynatrace.com/", DT_APP_PLATFORM_TOKEN: TOKEN }, ["--yes"]);
     assert.equal(r.status, 0, r.out);
-    assert.match(r.out, /Deploying my\.rocky\.agent 0\.1\.0 to https:\/\/abc12345\.apps\.dynatrace\.com/);
+    assert.match(r.out, /Deploying my\.rocky\.agent \d+\.\d+\.\d+ to https:\/\/abc12345\.apps\.dynatrace\.com/);
     assert.match(r.out, /\[dry-run\] npx dt-app deploy --environment-url https:\/\/abc12345\.apps\.dynatrace\.com/);
     assert.match(r.out, /Open it at https:\/\/abc12345\.apps\.dynatrace\.com\/ui\/apps\/my\.rocky\.agent/);
     assert.doesNotMatch(r.out, /notarealtokenvalue/);

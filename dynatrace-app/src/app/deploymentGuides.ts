@@ -61,8 +61,8 @@ export const DEPLOYMENT_GUIDES: DeploymentGuide[] = [
           content: `git clone ${REPO}.git
 cd dynatrace_apps_rocky_agent
 cp .env.example .env    # set DT_PLATFORM_URL, DT_PLATFORM_TOKEN and ROCKY_SERVER_PASSWORD
-docker compose run --rm rocky-agent login    # once: open the URL it prints and sign in to Claude
 docker compose --profile tunnel up -d
+docker compose run --rm rocky-agent login    # once: open the URL it prints, sign in to Claude, paste the code
 docker compose logs tunnel    # copy the https://<random>.trycloudflare.com address
 
 # Without the tunnel: runtime on http://127.0.0.1:4096 and this app on your computer

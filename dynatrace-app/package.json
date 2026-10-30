@@ -2,7 +2,7 @@
   "name": "rocky-agent-app",
   "version": "0.2.0",
   "private": true,
-  "description": "Dynatrace App for connecting to and working with a Rocky Agent (Claude Code) runtime.",
+  "description": "Dynatrace App for Rocky Agent, an AI agent for Dynatrace powered by Claude.",
   "license": "MIT",
   "scripts": {
     "start": "dt-app dev",

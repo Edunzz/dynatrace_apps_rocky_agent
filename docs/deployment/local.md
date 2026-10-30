@@ -42,14 +42,16 @@ Fill in `DT_PLATFORM_URL`, `DT_PLATFORM_TOKEN` and `ROCKY_SERVER_PASSWORD`
 (`NODE_ENV=production`), so it refuses to start with a short password or the
 development default.
 
-Then sign in to Claude once:
+Sign in to Claude once, before or after starting the runtime (the login works
+while it runs):
 
 ```bash
 docker compose run --rm rocky-agent login
 ```
 
-It prints an address; open it, sign in with your Claude account and paste the
-code back if the page shows one. The login is stored in the `rocky-home`
+It prints an address; open it, sign in with your Claude account, copy the code
+the page shows and paste it into the terminal once (it is not displayed) and
+press Enter. The login is stored in the `rocky-home`
 volume and survives restarts. Alternatives: `docker compose run --rm
 rocky-agent setup-token` and put the token in `CLAUDE_CODE_OAUTH_TOKEN`, or set
 `ANTHROPIC_API_KEY`. A subscription is for your own use only.

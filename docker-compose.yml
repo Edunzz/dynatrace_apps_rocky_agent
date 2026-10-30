@@ -1,8 +1,8 @@
 # Rocky Agent runtime on your computer.
 #
 #   cp .env.example .env                          # fill in the values (see README "Getting started")
-#   docker compose run --rm rocky-agent login     # once: sign in to Claude (or set a token in .env)
-#   docker compose --profile tunnel up -d
+#   docker compose --profile tunnel up -d         # if it says "unhealthy": docker compose logs rocky-agent
+#   docker compose run --rm rocky-agent login     # once, while it runs: sign in to Claude (or set a token in .env)
 #   docker compose logs tunnel                    # copy the https://<random>.trycloudflare.com URL
 #
 # The image comes from Docker Hub. To build it from this repository instead:

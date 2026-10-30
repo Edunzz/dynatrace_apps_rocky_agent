@@ -72,22 +72,27 @@ Open `.env` in any editor and fill in:
 | `DT_PLATFORM_TOKEN` | the **runtime token** from step 1 |
 | `ROCKY_SERVER_PASSWORD` | a password you choose, **16 characters or more** |
 
-Sign in to Claude (once; the login is kept in a Docker volume):
-
-```bash
-docker compose run --rm rocky-agent login
-```
-
-It prints an address. Open it in your browser, sign in with your Claude account
-and, if the page shows a code, paste it back into the terminal. With an
-Anthropic API key instead, skip this and set `ANTHROPIC_API_KEY` in `.env`.
-
-Then start it with a public HTTPS tunnel, so the app in Dynatrace can reach it:
+Start it with a public HTTPS tunnel, so the app in Dynatrace can reach it:
 
 ```bash
 docker compose --profile tunnel up -d    # downloads the image from Docker Hub the first time
 docker compose logs tunnel               # copy the https://….trycloudflare.com address
 ```
+
+If `up` says *container … is unhealthy*, the runtime refused to start: run
+`docker compose logs rocky-agent`, fix the `[FAIL]` line (usually a password
+shorter than 16 characters) and run the `up` command again.
+
+Sign in to Claude while it runs (once; the login is kept in a Docker volume):
+
+```bash
+docker compose run --rm rocky-agent login
+```
+
+It prints an address. Open it in your browser, sign in with your Claude account,
+copy the code the page shows and paste it into the terminal. The code is not
+displayed while you paste it: paste it once and press Enter. With an Anthropic
+API key instead, skip this and set `ANTHROPIC_API_KEY` in `.env`.
 
 > [!NOTE]
 > A Claude subscription is for **your own** use: don't let other people use
@@ -314,7 +319,7 @@ shows their status separately (**Runtime** and **Claude**).
 | Option | How | Who may use the runtime |
 |---|---|---|
 | Claude subscription login | `docker compose run --rm rocky-agent login` (stored in the `rocky-home` volume) | You only |
-| Claude subscription token | `docker compose run --rm rocky-agent setup-token` → `CLAUDE_CODE_OAUTH_TOKEN` | You only |
+| Claude subscription token | `docker compose run --rm rocky-agent setup-token` (or `claude setup-token` on a computer with Claude Code) → `CLAUDE_CODE_OAUTH_TOKEN` | You only |
 | Anthropic API key | `ANTHROPIC_API_KEY` | Your team |
 | Amazon Bedrock, Google Vertex AI, Microsoft Foundry | `CLAUDE_CODE_USE_BEDROCK=1` (or `_VERTEX`, `_FOUNDRY`) + provider settings | Your team |
 
@@ -385,8 +390,10 @@ and stored as an immutable tabular resource in Dynatrace Grail Resource Store.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| Container exits with `environment validation failed` | Missing variable, default password in production, short password | Read the `[FAIL]` lines in the log |
+| `up` says *container … is unhealthy*; the log says `environment validation failed` | Missing variable, default password in production, password shorter than 16 characters | `docker compose logs rocky-agent`, fix the `[FAIL]` lines, run `up` again |
 | **Claude: Not signed in** | No Claude credential | `docker compose run --rm rocky-agent login`, or set `CLAUDE_CODE_OAUTH_TOKEN` / `ANTHROPIC_API_KEY` |
+| `login` says `Login failed: timeout of 30000ms exceeded` | Claude's sign-in server did not answer in time | Run `login` again with the new address and paste the code once. If it keeps failing and Claude Code is installed on your computer, run `claude setup-token` there, put the token in `.env` as `CLAUDE_CODE_OAUTH_TOKEN` and run `up` again |
+| `login` says `Request failed with status code 400` | Code pasted twice, incomplete, or from an older address | Run `login` again and paste the newest code once |
 | **Claude: Sign-in rejected** | Expired login or revoked key | Sign in again or replace the key |
 | **Dynatrace: unavailable** | Network/DNS/TLS from the runtime | Check egress to `*.apps.dynatrace.com` |
 | **Dynatrace: authentication failed** | Token invalid, expired or wrong environment | Recreate the platform token; check `DT_PLATFORM_URL` |
