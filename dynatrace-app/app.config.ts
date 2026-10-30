@@ -12,8 +12,8 @@ const config: CliOptions = {
   app: {
     id: "my.rocky.agent",
     name: "Rocky Agent",
-    version: "0.1.0",
-    description: "Connect to a Rocky Agent (OpenCode) runtime and run Dynatrace investigations with an AI agent.",
+    version: "0.2.0",
+    description: "Run Dynatrace investigations with your own Rocky Agent (Claude Code) runtime.",
     scopes: [
       {
         name: "app-settings:objects:read",
