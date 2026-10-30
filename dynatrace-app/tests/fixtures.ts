@@ -1,18 +1,17 @@
-// Fixtures shaped after real OpenCode 1.19.5 responses (paths sanitized).
+// Fixtures shaped after real Rocky runtime responses (Claude Code translated by the gateway).
 import type { PlatformDeps, UploadLookupArgs } from "../src/functions/deps";
 import type { FetchLike } from "../src/functions/runtimeClient";
 import type { OcMessage, OcPermissionRequest, OcSession } from "../src/models/runtime";
 
 export const SESSION: OcSession = {
-  id: "ses_e7591e887ffen74WiJDeGcpqvK",
-  slug: "witty-moon",
+  id: "ses_6a1f2c3d-4b5e-4f60-8a71-9b2c3d4e5f60",
   title: "Checkout latency RCA",
   time: { created: 1793323833000, updated: 1793323836721 },
 };
 
 export const MESSAGES: OcMessage[] = [
   {
-    info: { id: "msg_1", sessionID: SESSION.id, role: "user", time: { created: 1793323834023 }, agent: "build" },
+    info: { id: "msg_1", sessionID: SESSION.id, role: "user", time: { created: 1793323834023 } },
     parts: [{ id: "prt_1", sessionID: SESSION.id, messageID: "msg_1", type: "text", text: "Please use bash" }],
   },
   {
@@ -21,10 +20,9 @@ export const MESSAGES: OcMessage[] = [
       sessionID: SESSION.id,
       role: "assistant",
       time: { created: 1793323834044, completed: 1793323836632 },
-      modelID: "mock-model",
-      providerID: "mock",
-      agent: "build",
-      finish: "tool-calls",
+      modelID: "claude-sonnet-5-5",
+      providerID: "anthropic",
+      finish: "tool_use",
     },
     parts: [
       { id: "prt_2", sessionID: SESSION.id, messageID: "msg_2", type: "step-start" },
@@ -34,8 +32,8 @@ export const MESSAGES: OcMessage[] = [
         sessionID: SESSION.id,
         messageID: "msg_2",
         type: "tool",
-        callID: "call_1",
-        tool: "bash",
+        callID: "toolu_01",
+        tool: "Bash",
         state: {
           status: "completed",
           input: { command: "curl -H 'Authorization: Bearer abcdefghijklmnopqrstuvwxyz123456' https://x.example.com", description: "Call API" },
@@ -52,21 +50,30 @@ export const MESSAGES: OcMessage[] = [
       sessionID: SESSION.id,
       role: "assistant",
       time: { created: 1793323836637, completed: 1793323836721 },
-      modelID: "mock-model",
-      providerID: "mock",
-      agent: "build",
+      modelID: "claude-sonnet-5-5",
+      providerID: "anthropic",
     },
     parts: [{ id: "prt_5", sessionID: SESSION.id, messageID: "msg_3", type: "text", text: "tool finished — see ```code``` blocks" }],
   },
 ];
 
 export const PERMISSION: OcPermissionRequest = {
-  id: "per_1",
+  id: "per_0123456789abcdef01234567",
   sessionID: SESSION.id,
   permission: "bash",
-  patterns: ["echo rocky-integration"],
-  metadata: { command: "echo rocky-integration" },
-  always: ["echo *"],
+  patterns: ["echo rocky-integration > marker.txt"],
+  metadata: { command: "echo rocky-integration > marker.txt", description: "Write a marker file" },
+  always: [],
+  tool: { messageID: "msg_2", callID: "toolu_01" },
+};
+
+export const STATUS = {
+  schemaVersion: 2,
+  checkedAt: "2026-10-30T10:00:00Z",
+  runtime: { status: "connected", version: "0.2.0", nodeEnv: "production", gateway: "enabled", uptimeSeconds: 10, activeRuns: 0 },
+  agent: { status: "ready", name: "Claude Code", version: "2.1.308" },
+  claude: { status: "connected", authMethod: "claude.ai", apiProvider: "firstParty", model: null, loginCommand: "docker compose run --rm rocky-agent login" },
+  dynatrace: { status: "connected", environmentHost: "abc12345.apps.dynatrace.com", checkedAt: null, detail: null },
 };
 
 export function jsonResponse(status: number, body: unknown): Response {
@@ -86,17 +93,21 @@ export function fakeRuntimeFetch(overrides: Record<string, () => Response> = {})
     if (overrides[key]) return overrides[key]();
     const auth = (init?.headers as Record<string, string> | undefined)?.authorization;
     if (path === "/rocky/v1/livez") return jsonResponse(200, { status: "ok" });
-    if (auth !== `Basic ${btoa("opencode:correct-password-123456")}`) return jsonResponse(401, { error: "unauthorized" });
-    if (path === "/global/health") return jsonResponse(200, { healthy: true, version: "1.19.5" });
-    if (path === "/rocky/v1/status") return jsonResponse(200, { runtime: { version: "0.1.0" }, dynatrace: { environmentHost: "abc12345.apps.dynatrace.com" } });
-    if (path === "/session" && (init?.method ?? "GET") === "GET") return jsonResponse(200, [SESSION]);
-    if (path === "/session" && init?.method === "POST") return jsonResponse(200, { ...SESSION, title: JSON.parse(String(init.body)).title });
-    if (path === `/session/${SESSION.id}` && (init?.method ?? "GET") === "GET") return jsonResponse(200, SESSION);
-    if (path === `/session/${SESSION.id}/message`) return jsonResponse(200, MESSAGES);
-    if (path === "/session/status") return jsonResponse(200, { [SESSION.id]: { type: "idle" } });
-    if (path === `/session/${SESSION.id}/children`) return jsonResponse(200, []);
-    if (path === "/permission") return jsonResponse(200, [PERMISSION]);
-    if (path === "/provider" || path === "/skill") return jsonResponse(200, []);
+    if (auth !== `Basic ${btoa("rocky:correct-password-123456")}`) return jsonResponse(401, { error: "unauthorized" });
+    const api = "/rocky/v1";
+    const session = `${api}/sessions/${SESSION.id}`;
+    if (path === `${api}/health`) return jsonResponse(200, { healthy: true, version: "0.2.0", agent: { name: "Claude Code", version: "2.1.308" } });
+    if (path === `${api}/status`) return jsonResponse(200, STATUS);
+    if (path === `${api}/sessions` && (init?.method ?? "GET") === "GET") return jsonResponse(200, [SESSION]);
+    if (path === `${api}/sessions` && init?.method === "POST") return jsonResponse(200, { ...SESSION, title: JSON.parse(String(init.body)).title });
+    if (path === session && (init?.method ?? "GET") === "GET") return jsonResponse(200, SESSION);
+    if (path === `${session}/messages`) return jsonResponse(200, MESSAGES);
+    if (path === `${session}/snapshot`) {
+      return jsonResponse(200, { messages: MESSAGES, status: { [SESSION.id]: { type: "idle" } }, permissions: [PERMISSION], children: [], todos: [] });
+    }
+    if (path === `${api}/sessions/status`) return jsonResponse(200, {});
+    if (path === `${api}/permissions`) return jsonResponse(200, [PERMISSION]);
+    if (path === `${api}/skills`) return jsonResponse(200, []);
     return jsonResponse(404, { error: "route_not_allowed", message: "Route is not available" });
   }) as FetchLike & { calls: { url: string; init?: RequestInit }[] };
   fn.calls = calls;
@@ -122,7 +133,7 @@ export function memoryDeps(fetchImpl: FetchLike, opts: { userId?: string; connec
         value: opts.connection ?? {
           displayName: "Test runtime",
           runtimeUrl: "https://rocky.example.com",
-          username: "opencode",
+          username: "rocky",
           authMode: "settings-secret",
           password: "correct-password-123456",
           timeoutSeconds: 30,
@@ -130,7 +141,7 @@ export function memoryDeps(fetchImpl: FetchLike, opts: { userId?: string; connec
       };
     },
     async getVaultCredentials() {
-      return { username: "opencode", password: "correct-password-123456" };
+      return { username: "rocky", password: "correct-password-123456" };
     },
     async currentUser() {
       return { userId: opts.userId ?? "11111111-2222-3333-4444-555555555555" };

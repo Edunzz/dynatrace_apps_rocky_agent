@@ -5,7 +5,6 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { composeConfig, resolveModel } from "../scripts/compose-opencode-config.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const scripts = join(here, "..", "scripts");
@@ -14,9 +13,10 @@ const hasJq = spawnSync("jq", ["--version"]).status === 0;
 const TOKEN = `dt0s16.ABCDEFGH12345678.${"B".repeat(64)}`;
 const VALID = {
   NODE_ENV: "production",
+  HOME: mkdtempSync(join(tmpdir(), "rocky-validate-")),
   DT_PLATFORM_URL: "https://abc12345.apps.dynatrace.com",
   DT_PLATFORM_TOKEN: TOKEN,
-  OPENCODE_SERVER_PASSWORD: "a-unique-password-123",
+  ROCKY_SERVER_PASSWORD: "a-unique-password-123",
 };
 
 function run(script, env, args = []) {
@@ -34,27 +34,33 @@ describe("validate-environment.sh", () => {
   });
 
   it("never prints secret values", () => {
-    const r = run("validate-environment.sh", { ...VALID, ANTHROPIC_API_KEY: "sk-ant-should-not-appear-123456", OPENCODE_PROVIDER: "anthropic" });
+    const r = run("validate-environment.sh", {
+      ...VALID,
+      ANTHROPIC_API_KEY: "sk-ant-should-not-appear-123456",
+      CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-should-not-appear",
+    });
     assert.doesNotMatch(r.out, /a-unique-password-123/);
     assert.doesNotMatch(r.out, new RegExp(TOKEN.replace(/\./g, "\\.")));
-    assert.doesNotMatch(r.out, /sk-ant-should-not-appear/);
+    assert.doesNotMatch(r.out, /should-not-appear/);
     assert.match(r.out, /DT_PLATFORM_TOKEN\s+\[REDACTED\]/);
+    assert.match(r.out, /CLAUDE_CODE_OAUTH_TOKEN\s+\[REDACTED\]/);
   });
 
   for (const [name, env, message] of [
     ["missing DT_PLATFORM_URL", { DT_PLATFORM_URL: "" }, /DT_PLATFORM_URL is required/],
     ["missing DT_PLATFORM_TOKEN", { DT_PLATFORM_TOKEN: "" }, /DT_PLATFORM_TOKEN is required/],
-    ["missing password", { OPENCODE_SERVER_PASSWORD: "" }, /OPENCODE_SERVER_PASSWORD is required/],
+    ["missing password", { ROCKY_SERVER_PASSWORD: "" }, /ROCKY_SERVER_PASSWORD is required/],
     ["http platform URL", { DT_PLATFORM_URL: "http://abc12345.apps.dynatrace.com" }, /HTTPS origin/],
     ["URL with credentials", { DT_PLATFORM_URL: "https://u:p@abc12345.apps.dynatrace.com" }, /must not contain credentials/],
     ["classic API URL", { DT_PLATFORM_URL: "https://abc12345.live.dynatrace.com" }, /classic API domain/],
-    ["default password in production", { OPENCODE_SERVER_PASSWORD: "edunzzxgundam79" }, /development default/],
-    ["short password in production", { OPENCODE_SERVER_PASSWORD: "short-pass" }, /at least 16 characters/],
+    ["default password in production", { ROCKY_SERVER_PASSWORD: "edunzzxgundam79" }, /development default/],
+    ["short password in production", { ROCKY_SERVER_PASSWORD: "short-pass" }, /at least 16 characters/],
     ["wildcard CORS in production", { ALLOWED_ORIGINS: "*" }, /not allowed in production/],
     ["http origin in production", { ALLOWED_ORIGINS: "http://example.com" }, /must be an https:\/\/ origin/],
     ["unrestricted dtctl safety level", { DTCTL_SAFETY_LEVEL: "dangerously-unrestricted" }, /not allowed/],
     ["invalid NODE_ENV", { NODE_ENV: "staging" }, /NODE_ENV must be/],
     ["token with newline", { DT_PLATFORM_TOKEN: "dt0s16.abc\ninjected: true" }, /unexpected format/],
+    ["invalid model name", { ROCKY_MODEL: "sonnet; rm -rf /" }, /ROCKY_MODEL has an invalid format/],
   ]) {
     it(`rejects ${name}`, () => {
       const r = run("validate-environment.sh", { ...VALID, ...env });
@@ -64,15 +70,29 @@ describe("validate-environment.sh", () => {
   }
 
   it("allows the default password in development with a warning", () => {
-    const r = run("validate-environment.sh", { ...VALID, NODE_ENV: "development", OPENCODE_SERVER_PASSWORD: "edunzzxgundam79" });
+    const r = run("validate-environment.sh", { ...VALID, NODE_ENV: "development", ROCKY_SERVER_PASSWORD: "edunzzxgundam79" });
     assert.equal(r.status, 0, r.out);
     assert.match(r.out, /\[WARN\].*development default/);
   });
 
-  it("flags a missing provider credential as authentication required", () => {
-    const r = run("validate-environment.sh", { ...VALID, OPENCODE_MODEL: "anthropic/claude-sonnet-4-5" });
+  it("warns, without failing, when Claude is not signed in", () => {
+    const r = run("validate-environment.sh", VALID);
     assert.equal(r.status, 0, r.out);
-    assert.match(r.out, /ANTHROPIC_API_KEY is not set \(authentication required\)/);
+    assert.match(r.out, /\[WARN\] Claude is not signed in: run 'docker compose run --rm rocky-agent login'/);
+  });
+
+  it("accepts each way of signing in to Claude", () => {
+    for (const env of [{ CLAUDE_CODE_OAUTH_TOKEN: "sk-ant-oat01-x" }, { ANTHROPIC_API_KEY: "sk-ant-api03-x" }, { CLAUDE_CODE_USE_BEDROCK: "1" }]) {
+      const r = run("validate-environment.sh", { ...VALID, ...env });
+      assert.match(r.out, /\[OK\]   Claude: /, JSON.stringify(env));
+    }
+  });
+
+  it("accepts model aliases and full names", () => {
+    for (const model of ["sonnet", "opus", "claude-sonnet-5-5", "sonnet[1m]"]) {
+      const r = run("validate-environment.sh", { ...VALID, ROCKY_MODEL: model });
+      assert.equal(r.status, 0, `${model}: ${r.out}`);
+    }
   });
 });
 
@@ -121,56 +141,50 @@ describe("configure-dtctl.sh", () => {
   });
 });
 
-describe("compose-opencode-config", () => {
-  const baseline = JSON.parse(readFileSync(join(here, "..", "opencode.json"), "utf8"));
+describe("Claude Code managed settings", () => {
+  const settings = JSON.parse(readFileSync(join(here, "..", "claude", "managed-settings.json"), "utf8"));
+  const { allow, deny } = settings.permissions;
 
-  it("applies the model and keeps the protected keys", () => {
-    const { config } = composeConfig(baseline, null, {
-      OPENCODE_MODEL: "claude-sonnet-4-5",
-      OPENCODE_PROVIDER: "anthropic",
-      ROCKY_POLICY_FILE: "/opt/rocky/policy/AGENTS.md",
-    });
-    assert.equal(config.model, "anthropic/claude-sonnet-4-5");
-    assert.deepEqual(config.instructions, ["/opt/rocky/policy/AGENTS.md"]);
-    assert.deepEqual(config.permission, baseline.permission);
-    assert.equal(config.share, "disabled");
-    assert.equal(config.$schema, undefined);
+  it("is the only source of permission rules and hooks, and blocks bypass mode", () => {
+    assert.equal(settings.allowManagedPermissionRulesOnly, true);
+    assert.equal(settings.allowManagedHooksOnly, true);
+    assert.equal(settings.permissions.disableBypassPermissionsMode, "disable");
+    assert.equal(settings.permissions.defaultMode, "default");
   });
 
-  it("ignores attempts to weaken permissions through extra configuration", () => {
-    const { config, warnings } = composeConfig(
-      baseline,
-      {
-        permission: { bash: "allow" },
-        instructions: [],
-        share: "auto",
-        provider: { mock: { npm: "@ai-sdk/openai-compatible" } },
-        agent: { build: { permission: { bash: "allow" }, model: "mock/m" } },
-      },
-      {},
-    );
-    assert.deepEqual(config.permission, baseline.permission);
-    assert.deepEqual(config.instructions, baseline.instructions);
-    assert.equal(config.share, "disabled");
-    assert.ok(config.provider.mock);
-    assert.deepEqual(config.agent.build, { model: "mock/m" });
-    assert.ok(warnings.length >= 3);
-  });
-
-  it("asks before any bash command that is not explicitly read-only", () => {
-    assert.equal(baseline.permission.bash["*"], "ask");
-    for (const allowed of Object.entries(baseline.permission.bash).filter(([, v]) => v === "allow").map(([k]) => k)) {
-      assert.doesNotMatch(allowed, /\b(rm|delete|apply -f(?!.*dry-run)|kubectl|terraform|git push|curl|wget)\b/, allowed);
+  it("allows only read-only commands and writes to artifact folders", () => {
+    for (const rule of allow) {
+      assert.match(rule, /^(Read\(~\/\.claude\/skills\/\*\*\)|Bash\((dtctl|python3?|node) |Edit\(\/\/workspace\/(artifacts|rca|rca-\*)\/\*\*\))/, rule);
+      assert.doesNotMatch(rule, /\b(rm|delete|kubectl|terraform|git push|curl|wget)\b/, rule);
     }
-    assert.equal(baseline.permission.bash["printenv*"], "deny");
-    assert.equal(baseline.permission.edit["*"], "ask");
-    assert.equal(baseline.share, "disabled");
+    assert.ok(allow.includes("Bash(dtctl apply * --dry-run*)"));
+    assert.ok(!allow.some((rule) => /^Bash\(dtctl apply(?!.*dry-run)/.test(rule)));
   });
 
-  it("resolves provider-less model names", () => {
-    assert.equal(resolveModel("gpt-5", "openai"), "openai/gpt-5");
-    assert.equal(resolveModel("anthropic/x", "openai"), "anthropic/x");
-    assert.equal(resolveModel("", "openai"), undefined);
+  it("protects credentials, runtime state and the environment", () => {
+    for (const rule of [
+      "Read(~/.claude/.credentials.json)",
+      "Read(~/.config/dtctl/**)",
+      "Read(//proc/**)",
+      "Read(~/.rocky/**)",
+      "Read(//tmp/rocky/**)",
+      "Edit(~/.claude/**)",
+      "Bash(env)",
+      "Bash(printenv *)",
+      "Bash(claude *)",
+    ]) {
+      assert.ok(deny.includes(rule), rule);
+    }
+    assert.equal(settings.env.DISABLE_UPDATES, "1");
+  });
+
+  it("keeps credentials in the environment out of reach of commands", () => {
+    for (const name of ["ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "CLAUDE_CODE_OAUTH_TOKEN", "AWS_SECRET_ACCESS_KEY"]) {
+      assert.ok(deny.includes(`Bash(*${name}*)`), name);
+    }
+    assert.ok(deny.includes("Bash(*/environ*)"));
+    assert.equal(settings.permissions.blockReadsOutsideWorkingDirectories, true);
+    assert.deepEqual(settings.permissions.additionalDirectories, ["/home/rocky/.claude/skills"]);
   });
 });
 
@@ -182,16 +196,23 @@ describe("Dockerfile", () => {
   });
 
   it("never bakes secrets into build arguments or layers", () => {
-    assert.doesNotMatch(dockerfile, /ARG\s+(DT_PLATFORM_TOKEN|OPENCODE_SERVER_PASSWORD|\w*API_KEY|AWS_SECRET)/);
-    assert.doesNotMatch(dockerfile, /ENV\s+(DT_PLATFORM_TOKEN|OPENCODE_SERVER_PASSWORD|\w*API_KEY)/);
+    assert.doesNotMatch(dockerfile, /ARG\s+(DT_PLATFORM_TOKEN|ROCKY_SERVER_PASSWORD|CLAUDE_CODE_OAUTH_TOKEN|\w*API_KEY|AWS_SECRET)/);
+    assert.doesNotMatch(dockerfile, /ENV\s+(DT_PLATFORM_TOKEN|ROCKY_SERVER_PASSWORD|CLAUDE_CODE_OAUTH_TOKEN|\w*API_KEY)/);
   });
 
-  it("pins the base image by digest and tools by version", () => {
+  it("pins the base image by digest and tools by version and checksum", () => {
     assert.match(dockerfile, /ARG NODE_IMAGE=node:\d+\.\d+\.\d+-bookworm-slim@sha256:[0-9a-f]{64}/);
-    assert.match(dockerfile, /ARG OPENCODE_VERSION=\d+\.\d+\.\d+/);
+    assert.match(dockerfile, /ARG CLAUDE_CODE_VERSION=\d+\.\d+\.\d+/);
+    assert.match(dockerfile, /ARG CLAUDE_CODE_SHA256_AMD64=[0-9a-f]{64}/);
+    assert.match(dockerfile, /ARG CLAUDE_CODE_SHA256_ARM64=[0-9a-f]{64}/);
     assert.match(dockerfile, /ARG DTCTL_VERSION=\d+\.\d+\.\d+/);
     assert.match(dockerfile, /ARG DT_SKILLS_REF=[0-9a-f]{40}/);
     assert.match(dockerfile, /ARG RCA_SKILLS_REF=[0-9a-f]{40}/);
+    assert.doesNotMatch(dockerfile, /opencode/i);
+  });
+
+  it("installs the managed settings where Claude Code reads them on Linux", () => {
+    assert.match(dockerfile, /^COPY claude\/managed-settings\.json \/etc\/claude-code\/managed-settings\.json$/m);
   });
 
   it("exposes the API port and defines a health check", () => {
@@ -200,10 +221,35 @@ describe("Dockerfile", () => {
   });
 });
 
+describe("install-claude-code.sh", () => {
+  const script = readFileSync(join(scripts, "install-claude-code.sh"), "utf8");
+
+  it("verifies the signed manifest and the binary checksum", () => {
+    assert.match(script, /FINGERPRINT="31DDDE24DDFAB679F42D7BD2BAA929FF1A7ECACE"/);
+    assert.match(script, /VALIDSIG \$\{FINGERPRINT\}/);
+    assert.match(script, /checksum mismatch against the signed manifest/);
+    assert.doesNotMatch(script, /install\.sh|\| *bash/, "no remote installer script is executed");
+  });
+});
+
 describe("healthcheck.sh", () => {
-  it("does not pass credentials as arguments", () => {
+  it("checks liveness without credentials", () => {
     const script = readFileSync(join(here, "..", "healthcheck.sh"), "utf8");
-    assert.doesNotMatch(script, /curl[^\n]*\s-u\s/);
-    assert.match(script, /-K -/);
+    assert.match(script, /\/rocky\/v1\/livez/);
+    assert.doesNotMatch(script, /PASSWORD|authorization|-u /i);
+  });
+});
+
+describe("entrypoint.sh", () => {
+  const script = readFileSync(join(here, "..", "entrypoint.sh"), "utf8");
+
+  it("offers the Claude sign-in helpers", () => {
+    assert.match(script, /login\) shift; exec claude auth login "\$@" ;;/);
+    assert.match(script, /setup-token\) exec claude setup-token ;;/);
+  });
+
+  it("keeps the runtime password out of the gateway environment", () => {
+    assert.match(script, /exec env -u ROCKY_SERVER_PASSWORD ROCKY_SECRET_FILE=/);
+    assert.match(script, /unset DT_PLATFORM_TOKEN/);
   });
 });

@@ -14,8 +14,8 @@
 | Secret | Consumer | Notes |
 |---|---|---|
 | `DT_PLATFORM_TOKEN` | dtctl inside the runtime | Dedicated service user; never reaches the app or browser |
-| `OPENCODE_SERVER_PASSWORD` | Rocky gateway | 16+ characters; the app stores it as an owner-only secret or reads it from the Credential Vault |
-| Provider keys (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENCODE_API_KEY`) | OpenCode | Prefer cloud roles (Bedrock task role) when possible |
+| `ROCKY_SERVER_PASSWORD` | Rocky gateway | 16+ characters; the app stores it as an owner-only secret or reads it from the Credential Vault. Handed to the gateway in a file it deletes at startup; never reaches Claude Code |
+| Claude credential (`CLAUDE_CODE_OAUTH_TOKEN`, `ANTHROPIC_API_KEY`, or a login stored in `~/.claude`) | Claude Code | The stored login (`login`) is blocked by a managed `Read` deny rule; a token or key in the environment is protected by managed rules that deny commands naming it or reading `/proc/*/environ` (Claude Code's own scrub needs user namespaces, which containers usually block). Prefer cloud roles (Bedrock task role) when possible. A subscription credential is personal |
 
 ## Docker and Docker Compose
 
@@ -57,7 +57,7 @@ secret version and restarting the revision.
 ```bash
 kubectl -n rocky-agent create secret generic rocky-agent-secrets \
   --from-file=DT_PLATFORM_TOKEN=./token.txt \
-  --from-file=OPENCODE_SERVER_PASSWORD=./password.txt \
+  --from-file=ROCKY_SERVER_PASSWORD=./password.txt \
   --from-file=ANTHROPIC_API_KEY=./anthropic.txt
 ```
 

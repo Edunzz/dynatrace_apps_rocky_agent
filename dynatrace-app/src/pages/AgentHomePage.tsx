@@ -2,7 +2,7 @@ import { Button } from "@dynatrace/strato-components/buttons";
 import { MessageContainer } from "@dynatrace/strato-components/content";
 import { FormField, Label, TextArea } from "@dynatrace/strato-components/forms";
 import { Flex } from "@dynatrace/strato-components/layouts";
-import { Heading, Paragraph, Text } from "@dynatrace/strato-components/typography";
+import { Code, Heading, Paragraph, Text } from "@dynatrace/strato-components/typography";
 import { PlayIcon } from "@dynatrace/strato-icons";
 import React, { useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
@@ -24,7 +24,8 @@ export function AgentHomePage() {
 
   if (!loading && !active) return <Navigate to="/connect" replace />;
 
-  const modelBlocked = status.data?.modelProvider.status === "authentication_required";
+  const claude = status.data?.claude;
+  const claudeBlocked = claude?.status === "authentication_required" || claude?.status === "authentication_failed";
 
   return (
     <div style={{ minHeight: "100%", background: Console.background, padding: 24 }}>
@@ -52,10 +53,16 @@ export function AgentHomePage() {
             </MessageContainer.Actions>
           </MessageContainer>
         ) : null}
-        {modelBlocked && (
+        {claudeBlocked && claude && (
           <MessageContainer variant="warning">
-            The model provider needs authentication ({status.data?.modelProvider.provider ?? "unknown provider"}). Set its API key or
-            role in the runtime deployment; the agent cannot answer until then.
+            <MessageContainer.Title>
+              {claude.status === "authentication_failed" ? "Claude rejected the runtime's sign-in" : "Claude is not signed in on the runtime"}
+            </MessageContainer.Title>
+            <MessageContainer.Description>
+              On the computer or server that runs the runtime, run <Code>{claude.loginCommand}</Code>, open the address it prints and
+              sign in with your Claude account. Or set CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY in its configuration. The agent
+              cannot answer until then.
+            </MessageContainer.Description>
           </MessageContainer>
         )}
         {status.data?.dynatrace.status && status.data.dynatrace.status !== "connected" && (

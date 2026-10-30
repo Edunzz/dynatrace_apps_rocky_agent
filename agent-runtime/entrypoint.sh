@@ -1,10 +1,20 @@
 #!/usr/bin/env bash
 # Rocky Agent runtime entrypoint (runs under tini as PID 1).
 #
+# Claude sign-in helpers (interactive; nothing else starts):
+#   login         claude auth login: opens Anthropic's sign-in page (copy the URL
+#                 into your browser) and stores the login in CLAUDE_CONFIG_DIR
+#   setup-token   claude setup-token: prints a one-year token for
+#                 CLAUDE_CODE_OAUTH_TOKEN
+#   auth-status   shows which credential Claude Code uses
+#   logout        removes the stored login
+#
+# Without a command:
 #  1. Apply defaults and validate the environment.
 #  2. Configure dtctl and check Dynatrace connectivity (degraded mode on failure).
-#  3. Install the pinned skills into the workspace.
-#  4. Start `opencode serve` (loopback, behind the Rocky gateway) and the gateway.
+#  3. Install the pinned skills into CLAUDE_CONFIG_DIR/skills.
+#  4. Prepare Claude Code's state and start the Rocky gateway, which runs
+#     Claude Code for each prompt.
 
 set -Eeuo pipefail
 umask 077
@@ -12,32 +22,45 @@ umask 077
 ROCKY_HOME="/opt/rocky"
 DEFAULT_PASSWORD="edunzzxgundam79"
 
+export CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
+export DISABLE_AUTOUPDATER=1 DISABLE_UPDATES=1 DISABLE_TELEMETRY=1 DISABLE_ERROR_REPORTING=1
+
+case "${1:-}" in
+  login) shift; exec claude auth login "$@" ;;
+  setup-token) exec claude setup-token ;;
+  auth-status) exec claude auth status --text ;;
+  logout) exec claude auth logout ;;
+  "") ;;
+  *)
+    echo "Unknown command '$1'. Use login, setup-token, auth-status, logout, or no command to start the runtime." >&2
+    exit 2
+    ;;
+esac
+
 export NODE_ENV="${NODE_ENV:-production}"
 export LOG_LEVEL="${LOG_LEVEL:-info}"
-export OPENCODE_PORT="${OPENCODE_PORT:-4096}"
-export OPENCODE_INTERNAL_PORT="${OPENCODE_INTERNAL_PORT:-4097}"
-export OPENCODE_SERVER_USERNAME="${OPENCODE_SERVER_USERNAME:-opencode}"
+export ROCKY_PORT="${ROCKY_PORT:-4096}"
+export ROCKY_SERVER_USERNAME="${ROCKY_SERVER_USERNAME:-rocky}"
 export WORKSPACE_PATH="${WORKSPACE_PATH:-/workspace}"
 export ROCKY_STATE_DIR="${ROCKY_STATE_DIR:-/tmp/rocky}"
-export ROCKY_GATEWAY_ENABLED="${ROCKY_GATEWAY_ENABLED:-true}"
+export ROCKY_DATA_DIR="${ROCKY_DATA_DIR:-$HOME/.rocky}"
 export ROCKY_POLICY_FILE="${ROCKY_POLICY_FILE:-$ROCKY_HOME/policy/AGENTS.md}"
 export ROCKY_SKILLS_MANIFEST="${ROCKY_SKILLS_MANIFEST:-$ROCKY_HOME/skills-manifest.json}"
 export DTCTL_SAFETY_LEVEL="${DTCTL_SAFETY_LEVEL:-readwrite-mine}"
 export DTCTL_DISABLE_KEYRING=1
 export DTCTL_TOKEN_STORAGE=file
-export OPENCODE_DISABLE_AUTOUPDATE=true
 
 log() { printf '{"time":"%s","level":"%s","component":"rocky-entrypoint","msg":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "$2"; }
 
 # The documented first-run default is only applied outside production.
-if [[ -z "${OPENCODE_SERVER_PASSWORD:-}" && "$NODE_ENV" != "production" ]]; then
-  export OPENCODE_SERVER_PASSWORD="$DEFAULT_PASSWORD"
+if [[ -z "${ROCKY_SERVER_PASSWORD:-}" && "$NODE_ENV" != "production" ]]; then
+  export ROCKY_SERVER_PASSWORD="$DEFAULT_PASSWORD"
 fi
-if [[ "${OPENCODE_SERVER_PASSWORD:-}" == "$DEFAULT_PASSWORD" ]]; then
+if [[ "${ROCKY_SERVER_PASSWORD:-}" == "$DEFAULT_PASSWORD" ]]; then
   cat >&2 <<'EOF'
 ################################################################################
 #  WARNING: Rocky Agent is using the documented DEVELOPMENT DEFAULT PASSWORD.  #
-#  Anyone who knows it can drive the agent. Set OPENCODE_SERVER_PASSWORD to a  #
+#  Anyone who knows it can drive the agent. Set ROCKY_SERVER_PASSWORD to a     #
 #  unique value of at least 16 characters. Production startup rejects it.      #
 ################################################################################
 EOF
@@ -48,8 +71,8 @@ if ! "$ROCKY_HOME/scripts/validate-environment.sh"; then
   exit 1
 fi
 
-mkdir -p "$ROCKY_STATE_DIR" "$WORKSPACE_PATH/artifacts/drawio" "$WORKSPACE_PATH/.opencode/skills"
-chmod 700 "$ROCKY_STATE_DIR"
+mkdir -p "$ROCKY_STATE_DIR" "$ROCKY_DATA_DIR" "$CLAUDE_CONFIG_DIR/skills" "$WORKSPACE_PATH/artifacts/drawio"
+chmod 700 "$ROCKY_STATE_DIR" "$ROCKY_DATA_DIR" "$CLAUDE_CONFIG_DIR"
 
 # --- Dynatrace / dtctl ------------------------------------------------------------
 "$ROCKY_HOME/scripts/configure-dtctl.sh"
@@ -62,62 +85,29 @@ fi
 unset DT_PLATFORM_TOKEN
 
 # --- Skills -----------------------------------------------------------------------
-# Refresh the pinned skills in the workspace on every start so a persisted
-# workspace volume always carries the versions baked into this image.
+# Claude Code runs with --setting-sources user, so only skills in
+# CLAUDE_CONFIG_DIR/skills load. Refresh the pinned ones on every start so a
+# persisted volume always carries the versions baked into this image.
 while IFS= read -r name; do
   [[ -n "$name" && -d "$ROCKY_HOME/skills/$name" ]] || continue
-  rm -rf "${WORKSPACE_PATH:?}/.opencode/skills/$name"
-  cp -R "$ROCKY_HOME/skills/$name" "$WORKSPACE_PATH/.opencode/skills/$name"
+  rm -rf "${CLAUDE_CONFIG_DIR:?}/skills/$name"
+  cp -R "$ROCKY_HOME/skills/$name" "$CLAUDE_CONFIG_DIR/skills/$name"
 done < <(jq -r '.official.skills[], .custom[].name, .drawio.name' "$ROCKY_SKILLS_MANIFEST")
-log info "skills installed: $(jq -r '[.official.skills | length, (.custom | length), 1] | add' "$ROCKY_SKILLS_MANIFEST")"
+log info "skills installed: $(jq -r '[(.official.skills | length), (.custom | length), 1] | add' "$ROCKY_SKILLS_MANIFEST")"
 
-# --- OpenCode configuration ------------------------------------------------------
-extra=()
-if [[ -n "${ROCKY_EXTRA_CONFIG_FILE:-}" ]]; then extra=("$ROCKY_EXTRA_CONFIG_FILE"); fi
-OPENCODE_CONFIG_CONTENT="$(node "$ROCKY_HOME/scripts/compose-opencode-config.mjs" "$ROCKY_HOME/opencode/opencode.json" "${extra[@]}")"
-export OPENCODE_CONFIG_CONTENT
-
-cd "$WORKSPACE_PATH"
-pids=()
-shutdown() {
-  log info "stopping"
-  for pid in "${pids[@]}"; do kill -TERM "$pid" 2>/dev/null || true; done
-  wait || true
-}
-trap shutdown TERM INT
-
-if [[ "$ROCKY_GATEWAY_ENABLED" == "true" ]]; then
-  # A random internal password protects the loopback OpenCode server, so the
-  # client password never reaches the agent's own processes.
-  internal_password="$(head -c 48 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' | head -c 40)"
-  client_password="$OPENCODE_SERVER_PASSWORD"
-
-  OPENCODE_SERVER_PASSWORD="$internal_password" \
-    opencode serve --hostname 127.0.0.1 --port "$OPENCODE_INTERNAL_PORT" &
-  pids+=("$!")
-
-  env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u OPENCODE_API_KEY -u AWS_SECRET_ACCESS_KEY -u AWS_SESSION_TOKEN \
-    -u OPENCODE_CONFIG_CONTENT \
-    OPENCODE_SERVER_PASSWORD="$client_password" ROCKY_UPSTREAM_PASSWORD="$internal_password" \
-    node "$ROCKY_HOME/gateway/server.mjs" &
-  pids+=("$!")
-  unset internal_password client_password
-  log info "OpenCode on 127.0.0.1:${OPENCODE_INTERNAL_PORT}, Rocky gateway on 0.0.0.0:${OPENCODE_PORT}"
+# --- Claude Code --------------------------------------------------------------------
+node "$ROCKY_HOME/scripts/prepare-claude.mjs"
+if claude auth status >/dev/null 2>&1; then
+  log info "Claude Code: credential configured"
 else
-  cors=()
-  IFS=',' read -r -a origins <<<"${ALLOWED_ORIGINS:-}"
-  for origin in "${origins[@]}"; do
-    origin="${origin//[[:space:]]/}"
-    [[ -n "$origin" && "$origin" != "*" ]] && cors+=(--cors "$origin")
-  done
-  opencode serve --hostname 0.0.0.0 --port "$OPENCODE_PORT" "${cors[@]}" &
-  pids+=("$!")
-  log warn "gateway disabled: raw OpenCode API on 0.0.0.0:${OPENCODE_PORT}"
+  log warn "Claude Code: not signed in. Run 'docker compose run --rm rocky-agent login' or set CLAUDE_CODE_OAUTH_TOKEN"
 fi
 
-# Exit as soon as any child exits so the orchestrator restarts the container.
-set +e
-wait -n "${pids[@]}"
-status=$?
-shutdown
-exit "$status"
+# --- Gateway --------------------------------------------------------------------------
+# The runtime password goes to the gateway in a file it deletes on startup, so
+# it never appears in the gateway's (or any agent process's) environment.
+secret_file="$(mktemp "$ROCKY_STATE_DIR/.gateway-secret.XXXXXX")"
+node -e 'process.stdout.write(JSON.stringify({ password: process.env.ROCKY_SERVER_PASSWORD }))' >"$secret_file"
+cd "$WORKSPACE_PATH"
+log info "Rocky gateway on 0.0.0.0:${ROCKY_PORT}"
+exec env -u ROCKY_SERVER_PASSWORD ROCKY_SECRET_FILE="$secret_file" node "$ROCKY_HOME/gateway/server.mjs"

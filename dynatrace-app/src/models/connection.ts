@@ -40,7 +40,7 @@ export interface ConnectionTestStep {
 export interface ConnectionTestResult {
   ok: boolean;
   steps: ConnectionTestStep[];
-  opencodeVersion: string | null;
+  agentVersion: string | null;
   runtimeVersion: string | null;
   gateway: boolean;
   capabilities: string[];

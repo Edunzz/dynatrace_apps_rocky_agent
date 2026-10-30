@@ -27,7 +27,7 @@ Manifests: [deploy/kubernetes](../../deploy/kubernetes/) (Kustomize).
 kubectl apply -f deploy/kubernetes/base/namespace.yaml
 kubectl -n rocky-agent create secret generic rocky-agent-secrets \
   --from-file=DT_PLATFORM_TOKEN=./token.txt \
-  --from-file=OPENCODE_SERVER_PASSWORD=./password.txt \
+  --from-file=ROCKY_SERVER_PASSWORD=./password.txt \
   --from-file=ANTHROPIC_API_KEY=./anthropic.txt
 # Edit examples/production/kustomization.yaml (host, DT_PLATFORM_URL, image digest)
 kubectl apply -k deploy/kubernetes/examples/production

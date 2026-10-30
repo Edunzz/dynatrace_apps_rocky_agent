@@ -68,7 +68,7 @@ export async function resolveConnection(ref: unknown, deps: PlatformDeps): Promi
   }
 
   const { baseUrl, host } = checkedUrl(value.runtimeUrl);
-  const username = typeof value.username === "string" && USERNAME.test(value.username) ? value.username : "opencode";
+  const username = typeof value.username === "string" && USERNAME.test(value.username) ? value.username : "rocky";
   const displayName = typeof value.displayName === "string" ? value.displayName : null;
   const timeoutSeconds = timeout(value.timeoutSeconds);
 

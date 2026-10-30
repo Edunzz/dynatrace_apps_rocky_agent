@@ -10,7 +10,7 @@ Parameters:
     AllowedPattern: "^[a-z][a-z0-9-]{1,28}$"
   Image:
     Type: String
-    Default: ghcr.io/edunzz/dynatrace_apps_rocky_agent:0.1.0
+    Default: docker.io/edunzz/rocky-agent:0.2.0
     Description: Image pinned by version or digest (never latest).
   VpcId:
     Type: AWS::EC2::VPC::Id
@@ -40,21 +40,20 @@ Parameters:
     Description: Secrets Manager ARN of the Dynatrace platform token.
   ServerPasswordSecretArn:
     Type: String
-    Description: Secrets Manager ARN of OPENCODE_SERVER_PASSWORD (16+ characters).
+    Description: Secrets Manager ARN of ROCKY_SERVER_PASSWORD (16+ characters).
   ModelApiKeySecretArn:
     Type: String
     Default: ""
-    Description: Optional Secrets Manager ARN of the model provider key.
+    Description: Optional Secrets Manager ARN of the Claude credential (empty when using Amazon Bedrock with the task role).
   ModelApiKeyEnv:
     Type: String
     Default: ANTHROPIC_API_KEY
-    AllowedValues: [ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENCODE_API_KEY]
-  OpencodeProvider:
+    AllowedValues: [ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN]
+    Description: ANTHROPIC_API_KEY for an Anthropic API key. A Claude subscription token is for personal use only.
+  ClaudeModel:
     Type: String
-    Default: anthropic
-  OpencodeModel:
-    Type: String
-    Default: anthropic/claude-sonnet-4-5
+    Default: ""
+    Description: Optional model alias (sonnet, opus) or full name; empty uses Claude Code's default.
   EnableBedrock:
     Type: String
     AllowedValues: ["true", "false"]
@@ -249,10 +248,10 @@ Resources:
               Protocol: tcp
           Environment:
             - { Name: DT_PLATFORM_URL, Value: !Ref DtPlatformUrl }
-            - { Name: OPENCODE_SERVER_USERNAME, Value: opencode }
-            - { Name: OPENCODE_PORT, Value: "4096" }
-            - { Name: OPENCODE_PROVIDER, Value: !Ref OpencodeProvider }
-            - { Name: OPENCODE_MODEL, Value: !Ref OpencodeModel }
+            - { Name: ROCKY_SERVER_USERNAME, Value: rocky }
+            - { Name: ROCKY_PORT, Value: "4096" }
+            - { Name: ROCKY_MODEL, Value: !Ref ClaudeModel }
+            - { Name: CLAUDE_CODE_USE_BEDROCK, Value: !If [BedrockEnabled, "1", ""] }
             - { Name: AWS_REGION, Value: !Ref AWS::Region }
             - { Name: NODE_ENV, Value: production }
             - { Name: LOG_LEVEL, Value: info }
@@ -260,10 +259,10 @@ Resources:
           Secrets: !If
             - HasModelKey
             - - { Name: DT_PLATFORM_TOKEN, ValueFrom: !Ref DtPlatformTokenSecretArn }
-              - { Name: OPENCODE_SERVER_PASSWORD, ValueFrom: !Ref ServerPasswordSecretArn }
+              - { Name: ROCKY_SERVER_PASSWORD, ValueFrom: !Ref ServerPasswordSecretArn }
               - { Name: !Ref ModelApiKeyEnv, ValueFrom: !Ref ModelApiKeySecretArn }
             - - { Name: DT_PLATFORM_TOKEN, ValueFrom: !Ref DtPlatformTokenSecretArn }
-              - { Name: OPENCODE_SERVER_PASSWORD, ValueFrom: !Ref ServerPasswordSecretArn }
+              - { Name: ROCKY_SERVER_PASSWORD, ValueFrom: !Ref ServerPasswordSecretArn }
           MountPoints:
             - { SourceVolume: workspace, ContainerPath: /workspace, ReadOnly: false }
             - { SourceVolume: home, ContainerPath: /home/rocky, ReadOnly: false }

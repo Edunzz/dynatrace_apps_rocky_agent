@@ -1,8 +1,12 @@
 # Rocky Agent runtime on your computer.
 #
-#   cp .env.example .env                         # fill in the values (see README "Getting started")
-#   docker compose --profile tunnel up -d --build
-#   docker compose logs tunnel                   # copy the https://<random>.trycloudflare.com URL
+#   cp .env.example .env                          # fill in the values (see README "Getting started")
+#   docker compose run --rm rocky-agent login     # once: sign in to Claude (or set a token in .env)
+#   docker compose --profile tunnel up -d
+#   docker compose logs tunnel                    # copy the https://<random>.trycloudflare.com URL
+#
+# The image comes from Docker Hub. To build it from this repository instead:
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml --profile tunnel up -d --build
 #
 # Without "--profile tunnel" the runtime is reachable only on 127.0.0.1:4096,
 # which works with `dt-app dev` but not with the app installed in Dynatrace.
@@ -11,11 +15,7 @@ name: rocky-agent
 
 services:
   rocky-agent:
-    build:
-      context: ./agent-runtime
-      args:
-        INSTALL_DRAWIO_DESKTOP: "true"
-    image: rocky-agent:local
+    image: ${ROCKY_IMAGE:-docker.io/edunzz/rocky-agent:0.2.0}
     env_file: .env
     environment:
       # Production rules by default: a unique password of 16+ characters is required.
@@ -24,10 +24,11 @@ services:
       - "127.0.0.1:4096:4096"
     volumes:
       - rocky-workspace:/workspace
+      # Claude login, conversations and sessions survive restarts.
+      - rocky-home:/home/rocky
     read_only: true
     tmpfs:
       - /tmp:size=512m,mode=1777
-      - /home/rocky:size=1g,uid=10001,gid=10001,mode=0700
     security_opt:
       - no-new-privileges:true
     cap_drop:
@@ -54,3 +55,4 @@ services:
 
 volumes:
   rocky-workspace: {}
+  rocky-home: {}

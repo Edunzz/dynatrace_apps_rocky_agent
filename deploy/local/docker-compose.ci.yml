@@ -1,17 +1,18 @@
-# CI integration environment: Rocky runtime + mock model provider.
+# CI integration environment: Rocky runtime (Claude Code) + mock Anthropic API.
 #
 # The Dynatrace URL points to a reserved, unresolvable domain on purpose so the
 # runtime starts in degraded mode ("Dynatrace connection: unavailable").
-# No real credential is used.
+# No real credential is used: Claude Code talks to the mock through
+# ANTHROPIC_BASE_URL with a placeholder key.
 #
 #   ROCKY_IMAGE=rocky-agent:ci docker compose -f deploy/local/docker-compose.ci.yml up -d
 
 name: rocky-agent-ci
 
 services:
-  mock-llm:
+  mock-anthropic:
     image: node:24.22.2-bookworm-slim@sha256:c86ecead9e55a5210ac1727de38a4ca840bf03dcaf34dc9749addbf383b1920c
-    command: ["node", "/mock/mock-llm.mjs"]
+    command: ["node", "/mock/mock-anthropic.mjs"]
     environment:
       MOCK_LLM_HOST: 0.0.0.0
       MOCK_LLM_PORT: "8089"
@@ -21,19 +22,17 @@ services:
   rocky-agent:
     image: ${ROCKY_IMAGE:-rocky-agent:ci}
     depends_on:
-      - mock-llm
+      - mock-anthropic
     environment:
       NODE_ENV: test
       DT_PLATFORM_URL: https://rocky-ci.invalid
       DT_PLATFORM_TOKEN: ci-placeholder-not-a-real-token
-      OPENCODE_SERVER_PASSWORD: ci-integration-password-0123
-      OPENCODE_MODEL: mock/mock-model
-      ROCKY_EXTRA_CONFIG_FILE: /config/mock-provider.json
+      ROCKY_SERVER_PASSWORD: ci-integration-password-0123
+      ANTHROPIC_BASE_URL: http://mock-anthropic:8089
+      ANTHROPIC_API_KEY: ci-mock-anthropic-key-not-real
       LOG_LEVEL: info
     ports:
       - "127.0.0.1:4096:4096"
-    volumes:
-      - ./mock-provider.json:/config/mock-provider.json:ro
     read_only: true
     tmpfs:
       - /tmp:size=512m,mode=1777

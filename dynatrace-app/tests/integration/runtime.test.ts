@@ -1,5 +1,6 @@
-// Runs the app function handlers against a live Rocky runtime that uses the
-// mock model provider (agent-runtime/tests/integration/mock-llm.mjs).
+// Runs the app function handlers against a live Rocky runtime: the real image
+// with Claude Code talking to the mock Anthropic API
+// (agent-runtime/tests/integration/mock-anthropic.mjs).
 //
 //   ROCKY_IT_URL=http://127.0.0.1:4096 ROCKY_IT_PASSWORD=... npx jest tests/integration
 //
@@ -24,7 +25,7 @@ function unwrap<T>(result: FunctionResult<unknown>): T {
 
 describeIt("app functions against a live runtime", () => {
   jest.setTimeout(180_000);
-  const connection = { adHoc: { runtimeUrl: URL_ ?? "", username: "opencode", password: PASSWORD, timeoutSeconds: 60 } };
+  const connection = { adHoc: { runtimeUrl: URL_ ?? "", username: "rocky", password: PASSWORD, timeoutSeconds: 60 } };
   const deps = memoryDeps(((input: string, init?: RequestInit) => fetch(input, init)) as FetchLike);
   let sessionId = "";
 

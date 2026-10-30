@@ -47,7 +47,7 @@ skill requires them (for example the RCA skill needs PNG files).
    Validate first; the exporter does not report structural errors.
 
 `<skill-dir>` is the directory that contains this file (in Rocky Agent:
-`/workspace/.opencode/skills/drawio`).
+`/home/rocky/.claude/skills/drawio`).
 
 ## Spec format
 

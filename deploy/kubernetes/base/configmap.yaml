@@ -5,10 +5,10 @@ metadata:
 data:
   # Non-secret settings only. Secrets live in the rocky-agent-secrets Secret.
   DT_PLATFORM_URL: "https://abc12345.apps.dynatrace.com"
-  OPENCODE_SERVER_USERNAME: "opencode"
-  OPENCODE_PORT: "4096"
-  OPENCODE_PROVIDER: "anthropic"
-  OPENCODE_MODEL: "anthropic/claude-sonnet-4-5"
+  ROCKY_SERVER_USERNAME: "rocky"
+  ROCKY_PORT: "4096"
+  # Optional: model alias (sonnet, opus) or full name; empty uses Claude Code's default.
+  ROCKY_MODEL: "sonnet"
   WORKSPACE_PATH: "/workspace"
   LOG_LEVEL: "info"
   NODE_ENV: "production"

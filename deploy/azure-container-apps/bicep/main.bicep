@@ -9,7 +9,7 @@ param location string = resourceGroup().location
 param name string = 'rocky-agent'
 
 @description('Container image pinned by version or digest (never latest).')
-param image string = 'ghcr.io/edunzz/dynatrace_apps_rocky_agent:0.1.0'
+param image string = 'docker.io/edunzz/rocky-agent:0.2.0'
 
 @description('Dynatrace platform URL, for example https://abc12345.apps.dynatrace.com')
 param dtPlatformUrl string
@@ -22,12 +22,12 @@ param dtPlatformTokenSecretName string = 'dt-platform-token'
 param serverPasswordSecretName string = 'server-password'
 param modelApiKeySecretName string = 'model-api-key'
 
-@description('Environment variable that receives the model provider key.')
-@allowed(['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'OPENCODE_API_KEY'])
+@description('Environment variable that receives the Claude credential. A Claude subscription token (CLAUDE_CODE_OAUTH_TOKEN) is for personal use only.')
+@allowed(['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN'])
 param modelApiKeyEnv string = 'ANTHROPIC_API_KEY'
 
-param opencodeProvider string = 'anthropic'
-param opencodeModel string = 'anthropic/claude-sonnet-4-5'
+@description('Optional model alias (sonnet, opus) or full name; empty uses the Claude Code default.')
+param claudeModel string = ''
 
 @description('true: public HTTPS ingress; false: internal ingress (VNet + EdgeConnect).')
 param externalIngress bool = true
@@ -136,19 +136,19 @@ resource app 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(cpu)
             memory: memory
           }
-          env: [
+          env: concat([
             { name: 'DT_PLATFORM_URL', value: dtPlatformUrl }
             { name: 'DT_PLATFORM_TOKEN', secretRef: 'dt-platform-token' }
-            { name: 'OPENCODE_SERVER_USERNAME', value: 'opencode' }
-            { name: 'OPENCODE_SERVER_PASSWORD', secretRef: 'server-password' }
+            { name: 'ROCKY_SERVER_USERNAME', value: 'rocky' }
+            { name: 'ROCKY_SERVER_PASSWORD', secretRef: 'server-password' }
             { name: modelApiKeyEnv, secretRef: 'model-api-key' }
-            { name: 'OPENCODE_PROVIDER', value: opencodeProvider }
-            { name: 'OPENCODE_MODEL', value: opencodeModel }
-            { name: 'OPENCODE_PORT', value: '4096' }
+            { name: 'ROCKY_PORT', value: '4096' }
             { name: 'NODE_ENV', value: 'production' }
             { name: 'LOG_LEVEL', value: 'info' }
             { name: 'WORKSPACE_PATH', value: '/workspace' }
-          ]
+          ], empty(claudeModel) ? [] : [
+            { name: 'ROCKY_MODEL', value: claudeModel }
+          ])
           probes: [
             {
               type: 'Startup'

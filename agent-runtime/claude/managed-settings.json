@@ -1,0 +1,68 @@
+{
+  "permissions": {
+    "defaultMode": "default",
+    "disableBypassPermissionsMode": "disable",
+    "blockReadsOutsideWorkingDirectories": true,
+    "additionalDirectories": [
+      "/home/rocky/.claude/skills"
+    ],
+    "allow": [
+      "Read(~/.claude/skills/**)",
+      "Bash(dtctl version*)",
+      "Bash(dtctl doctor*)",
+      "Bash(dtctl auth whoami*)",
+      "Bash(dtctl get *)",
+      "Bash(dtctl describe *)",
+      "Bash(dtctl query *)",
+      "Bash(dtctl apply * --dry-run*)",
+      "Bash(python /home/rocky/.claude/skills/dt-custom-rca-jromero/scripts/check_prereqs.py*)",
+      "Bash(python3 /home/rocky/.claude/skills/dt-custom-rca-jromero/scripts/check_prereqs.py*)",
+      "Bash(python /home/rocky/.claude/skills/dt-custom-rca-jromero/scripts/hora_local.py *)",
+      "Bash(python3 /home/rocky/.claude/skills/dt-custom-rca-jromero/scripts/hora_local.py *)",
+      "Bash(node /home/rocky/.claude/skills/drawio/scripts/drawio-validate.mjs *)",
+      "Edit(//workspace/artifacts/**)",
+      "Edit(//workspace/rca/**)",
+      "Edit(//workspace/rca-*/**)"
+    ],
+    "deny": [
+      "Read(~/.claude/.credentials.json)",
+      "Read(~/.config/dtctl/**)",
+      "Read(~/.rocky/**)",
+      "Read(//proc/**)",
+      "Read(//tmp/rocky/**)",
+      "Read(//**/*.pem)",
+      "Read(//**/*.key)",
+      "Edit(~/.claude/**)",
+      "Edit(~/.rocky/**)",
+      "Edit(~/.config/**)",
+      "Edit(//opt/rocky/**)",
+      "Bash(env)",
+      "Bash(env *)",
+      "Bash(printenv)",
+      "Bash(printenv *)",
+      "Bash(cat *dtctl/config*)",
+      "Bash(claude)",
+      "Bash(claude *)",
+      "Bash(*ANTHROPIC_API_KEY*)",
+      "Bash(*ANTHROPIC_AUTH_TOKEN*)",
+      "Bash(*CLAUDE_CODE_OAUTH_TOKEN*)",
+      "Bash(*AWS_SECRET_ACCESS_KEY*)",
+      "Bash(*AWS_SESSION_TOKEN*)",
+      "Bash(*/environ*)",
+      "Bash(*.credentials.json*)",
+      "Bash(set)",
+      "Bash(export)",
+      "Bash(export -p*)",
+      "Bash(declare *)",
+      "Bash(compgen *)"
+    ]
+  },
+  "allowManagedPermissionRulesOnly": true,
+  "allowManagedHooksOnly": true,
+  "env": {
+    "DISABLE_AUTOUPDATER": "1",
+    "DISABLE_UPDATES": "1",
+    "DISABLE_TELEMETRY": "1",
+    "DISABLE_ERROR_REPORTING": "1"
+  }
+}

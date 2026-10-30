@@ -26,7 +26,7 @@ External requests**.
 * Git
 * A Dynatrace SaaS environment and a runtime platform token
   ([scopes](../dynatrace-setup.md#1-runtime-platform-token-dt_platform_token))
-* A model provider key, or OpenCode Zen free models
+* A Claude subscription (Pro, Max, Team or Enterprise) or an Anthropic API key
 * Option B only: Node.js 20+
 
 ## Configure the runtime
@@ -37,10 +37,26 @@ cd dynatrace_apps_rocky_agent
 cp .env.example .env          # Windows (PowerShell): copy .env.example .env
 ```
 
-Fill in `DT_PLATFORM_URL`, `DT_PLATFORM_TOKEN`, `OPENCODE_SERVER_PASSWORD`
-(16+ characters) and the model provider key. Compose runs the runtime with
-production rules by default (`NODE_ENV=production`), so it refuses to start
-with a short password or the development default.
+Fill in `DT_PLATFORM_URL`, `DT_PLATFORM_TOKEN` and `ROCKY_SERVER_PASSWORD`
+(16+ characters). Compose runs the runtime with production rules by default
+(`NODE_ENV=production`), so it refuses to start with a short password or the
+development default.
+
+Then sign in to Claude once:
+
+```bash
+docker compose run --rm rocky-agent login
+```
+
+It prints an address; open it, sign in with your Claude account and paste the
+code back if the page shows one. The login is stored in the `rocky-home`
+volume and survives restarts. Alternatives: `docker compose run --rm
+rocky-agent setup-token` and put the token in `CLAUDE_CODE_OAUTH_TOKEN`, or set
+`ANTHROPIC_API_KEY`. A subscription is for your own use only.
+
+The image `docker.io/edunzz/rocky-agent` is downloaded from Docker Hub. To build
+it from this repository instead, add `-f docker-compose.yml -f
+docker-compose.build.yml` and `--build` to the `docker compose` commands below.
 
 ## Option A: installed app + tunnel
 
@@ -49,7 +65,7 @@ with a short password or the development default.
 2. Start the runtime and the tunnel:
 
    ```bash
-   docker compose --profile tunnel up -d --build
+   docker compose --profile tunnel up -d
    docker compose logs tunnel      # look for https://<random-words>.trycloudflare.com
    ```
 
@@ -60,7 +76,7 @@ with a short password or the development default.
 3. Once per environment: **Settings → General → External requests** → add
    `*.trycloudflare.com` → **Save**.
 4. In the app: **New runtime connection** with the `https://….trycloudflare.com`
-   address, username `opencode` and your password → **Test connection** →
+   address, username `rocky` and your password → **Test connection** →
    **Save connection** → **Let’s Rock**.
 
 **The address changes every time the tunnel restarts.** After
@@ -85,7 +101,7 @@ No tunnel and no settings change: the app runs on your computer and its
 functions call the runtime on `localhost`.
 
 ```bash
-docker compose up -d --build    # runtime on http://127.0.0.1:4096 only
+docker compose up -d           # runtime on http://127.0.0.1:4096 only
 curl -fsS http://127.0.0.1:4096/rocky/v1/livez   # {"status":"ok"}
 
 cd dynatrace-app
@@ -94,18 +110,20 @@ DT_APP_ENVIRONMENT_URL=https://<environment-id>.apps.dynatrace.com npm start   #
 ```
 
 In the app: **New runtime connection** → Runtime URL `http://localhost:4096`,
-username `opencode`, your password → **Test connection** → **Save connection**
+username `rocky`, your password → **Test connection** → **Save connection**
 → **Let’s Rock**. Plain HTTP is accepted only for `localhost`/`127.0.0.1`, and
 the connection test reports it as a warning.
 
 To use the documented development default password `edunzzxgundam79` here,
-set `NODE_ENV=development` and leave `OPENCODE_SERVER_PASSWORD` empty in `.env`.
+set `NODE_ENV=development` and leave `ROCKY_SERVER_PASSWORD` empty in `.env`.
 Never combine that with the tunnel (the gateway rejects it).
 
-Verified: the built `connection-test` and `runtime-proxy` functions, run in the
-local Dynatrace JavaScript runtime that `dt-app dev` uses, passed every
-connection-test step against a runtime at `http://localhost:4096` and created a
-session, sent a prompt, received the reply and deleted the session.
+Verified with the runtime 0.1 (OpenCode): the built `connection-test` and
+`runtime-proxy` functions, run in the local Dynatrace JavaScript runtime that
+`dt-app dev` uses, passed every connection-test step against
+`http://localhost:4096`. With the Claude Code runtime (0.2), the app function
+handlers were run in Node.js against a local gateway driving the real Claude
+Code binary and a mock Anthropic API; `dt-app dev` itself was not started.
 
 Notes:
 

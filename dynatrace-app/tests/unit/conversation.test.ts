@@ -13,7 +13,7 @@ describe("conversationToMarkdown", () => {
   it("includes user-visible content and tool activity", () => {
     expect(markdown).toContain("# Checkout latency RCA");
     expect(markdown).toContain("Please use bash");
-    expect(markdown).toContain("**Tool `bash`** — Call API · _completed_");
+    expect(markdown).toContain("**Tool `Bash`** — Call API · _completed_");
     expect(markdown).toContain("tool finished");
     expect(messageCount).toBe(3);
   });

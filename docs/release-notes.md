@@ -1,6 +1,45 @@
 # Release notes
 
-## Unreleased
+## 0.2.0
+
+The agent runtime now runs **Claude Code** instead of OpenCode, so you can
+sign in with your Claude subscription. **Breaking:** runtimes, connections and
+deployment templates from 0.1.x need the changes below.
+
+### Runtime
+
+* Claude Code 2.1.308 (native binary verified against Anthropic's signed
+  release manifest and pinned digests), driven by the **Rocky gateway**: one
+  `claude -p` run per prompt, resuming the session's conversation; the gateway
+  translates the event stream into chat messages and stores sessions in
+  `~/.rocky`.
+* Claude sign-in: `docker compose run --rm rocky-agent login` (subscription
+  login kept in the `rocky-home` volume), `setup-token` (`CLAUDE_CODE_OAUTH_TOKEN`),
+  `ANTHROPIC_API_KEY`, or Amazon Bedrock / Vertex AI / Foundry. The status bar
+  and the connection test show whether Claude is signed in.
+* Tool approvals go through an MCP permission tool to the app; unanswered
+  approvals are denied after 15 minutes; permanent approvals are refused.
+* Managed settings in `/etc/claude-code` are the only source of permission
+  rules and hooks; runs ignore workspace settings, hooks and MCP servers;
+  credentials are removed from the commands the agent runs.
+* New API under `/rocky/v1` (sessions, snapshot, prompt, abort, approvals,
+  artifacts). The OpenCode routes are gone.
+* Renamed variables: `OPENCODE_SERVER_PASSWORD` → `ROCKY_SERVER_PASSWORD`,
+  `OPENCODE_SERVER_USERNAME` → `ROCKY_SERVER_USERNAME` (default user `rocky`),
+  `OPENCODE_PORT` → `ROCKY_PORT`, `OPENCODE_MODEL` → `ROCKY_MODEL` (an alias
+  such as `sonnet`). OpenAI and OpenCode Zen are no longer supported.
+* The runtime password reaches the gateway through a file deleted at startup.
+* The image is published as `docker.io/edunzz/rocky-agent` (also on GHCR);
+  `docker-compose.yml` uses it, `docker-compose.build.yml` builds it locally.
+
+### Dynatrace App
+
+* Uses the Rocky API: one snapshot call per chat poll, **Claude Code** and
+  **Claude** status lights, Claude sign-in step in the connection test, files
+  written by the agent in place of the diff, no console button.
+* New connections default to the username `rocky`; edit existing connections.
+
+### Earlier unreleased changes
 
 * README **Getting started** in five steps: create two platform tokens, install
   the app from GitHub Codespaces, start the runtime with Docker Compose, allow

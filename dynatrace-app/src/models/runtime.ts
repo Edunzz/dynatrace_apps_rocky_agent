@@ -1,5 +1,6 @@
-// Types for the Rocky gateway and the subset of the OpenCode server API the app uses.
-// OpenCode shapes were taken from the OpenAPI document of OpenCode 1.19.5.
+// Types of the Rocky runtime API (/rocky/v1). The gateway translates Claude
+// Code's event stream into these message shapes (originally modeled on the
+// OpenCode server API, hence the Oc prefix).
 
 export type ComponentState =
   | "connected"
@@ -23,11 +24,12 @@ export interface RuntimeStatus {
     version: string;
     nodeEnv: string;
     gateway: string;
-    consoleEnabled: boolean;
     uptimeSeconds: number;
+    activeRuns: number;
   };
-  opencode: { status: ComponentState; version: string | null };
-  modelProvider: { status: ComponentState; provider: string | null; model: string | null; connectedProviders: string[] };
+  agent: { status: ComponentState; name: string; version: string | null };
+  // authMethod: none | claude.ai | oauth_token | api_key | api_key_helper | third_party (Claude Code `auth status`)
+  claude: { status: ComponentState; authMethod: string; apiProvider: string | null; model: string | null; loginCommand: string };
   dynatrace: { status: ComponentState; environmentHost: string; checkedAt: string | null; detail: string | null };
   dtctl: { status: ComponentState; version: string | null; safetyLevel: string | null };
   skills: {
@@ -146,12 +148,6 @@ export interface OcPermissionRequest {
   metadata: Record<string, unknown>;
   always: string[];
   tool?: { messageID: string; callID: string };
-}
-
-export interface OcProviderList {
-  all: { id: string; name: string; models: Record<string, { name?: string }> }[];
-  default: Record<string, string>;
-  connected: string[];
 }
 
 export interface RuntimePolicy {

@@ -1,0 +1,14 @@
+# Builds the runtime image from this repository instead of pulling it:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.build.yml --profile tunnel up -d --build
+#
+# The first build takes about 10 minutes (Claude Code, dtctl, skills and the
+# draw.io exporter are downloaded and verified).
+
+services:
+  rocky-agent:
+    image: rocky-agent:local
+    build:
+      context: ./agent-runtime
+      args:
+        INSTALL_DRAWIO_DESKTOP: "true"

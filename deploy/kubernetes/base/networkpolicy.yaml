@@ -1,7 +1,7 @@
 # Default deny, then allow:
 #   ingress: only from the ingress controller namespace on port 4096
-#   egress:  DNS, and HTTPS to the Dynatrace environment, the model provider
-#            and the npm registry (OpenCode installs provider SDKs on demand)
+#   egress:  DNS, and HTTPS to the Dynatrace environment and Anthropic (or the
+#            cloud provider that serves Claude)
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:

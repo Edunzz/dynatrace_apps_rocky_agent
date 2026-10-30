@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { REDACTED, redactDeep, redactEnv, redactText } from "../src/optional-gateway/redact.mjs";
+import { REDACTED, redactDeep, redactEnv, redactText } from "../src/gateway/redact.mjs";
 
 // Synthetic values only; none of these are real credentials.
 const CASES = [

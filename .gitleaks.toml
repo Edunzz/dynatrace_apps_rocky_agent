@@ -11,9 +11,8 @@ regexes = [
   '''edunzzxgundam79''',
   '''ci-integration-password-0123''',
   '''ci-placeholder-not-a-real-token''',
-  '''mock-key-not-secret''',
+  '''ci-mock-anthropic-key-not-real''',
   '''test-password-0123456789''',
-  '''internal-upstream-password-abcdef''',
   '''e2e-password-0123456789''',
   '''a-unique-password-123''',
   # Public ID of the Azure built-in role "Key Vault Secrets User".

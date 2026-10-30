@@ -26,8 +26,8 @@ spec:
           type: RuntimeDefault
       containers:
         - name: rocky-agent
-          # Pin by digest in production: ghcr.io/edunzz/dynatrace_apps_rocky_agent@sha256:<digest>
-          image: ghcr.io/edunzz/dynatrace_apps_rocky_agent:0.1.0
+          # Pin by digest in production: docker.io/edunzz/rocky-agent@sha256:<digest>
+          image: docker.io/edunzz/rocky-agent:0.2.0
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -42,16 +42,24 @@ spec:
                 secretKeyRef:
                   name: rocky-agent-secrets
                   key: DT_PLATFORM_TOKEN
-            - name: OPENCODE_SERVER_PASSWORD
+            - name: ROCKY_SERVER_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: rocky-agent-secrets
-                  key: OPENCODE_SERVER_PASSWORD
+                  key: ROCKY_SERVER_PASSWORD
+            # Claude credential: an Anthropic API key, or a Claude subscription
+            # token (personal use only).
             - name: ANTHROPIC_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: rocky-agent-secrets
                   key: ANTHROPIC_API_KEY
+                  optional: true
+            - name: CLAUDE_CODE_OAUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: rocky-agent-secrets
+                  key: CLAUDE_CODE_OAUTH_TOKEN
                   optional: true
           securityContext:
             allowPrivilegeEscalation: false
