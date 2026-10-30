@@ -29,13 +29,13 @@ docker run -d --name rocky-agent --restart unless-stopped \
   -v rocky-workspace:/workspace -v rocky-home:/home/rocky \
   --read-only --tmpfs /tmp:size=512m \
   --cap-drop ALL --security-opt no-new-privileges:true \
-  docker.io/edunzz/rocky-agent:0.2.2
+  docker.io/edunzz/rocky-agent:0.2.3
 ```
 
 Or with Compose from the repository root: `docker compose up -d` (reads `.env`).
 
 With your own Claude subscription instead of an API key (personal server only):
-`docker run --rm -it -v rocky-home:/home/rocky docker.io/edunzz/rocky-agent:0.2.2 login`
+`docker run --rm -it -v rocky-home:/home/rocky docker.io/edunzz/rocky-agent:0.2.3 login`
 before starting the container; the login is stored in the `rocky-home` volume.
 
 ## Reverse proxy (Caddy example)

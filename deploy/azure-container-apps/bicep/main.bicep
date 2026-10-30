@@ -9,7 +9,7 @@ param location string = resourceGroup().location
 param name string = 'rocky-agent'
 
 @description('Container image pinned by version or digest (never latest).')
-param image string = 'docker.io/edunzz/rocky-agent:0.2.2'
+param image string = 'docker.io/edunzz/rocky-agent:0.2.3'
 
 @description('Dynatrace platform URL, for example https://abc12345.apps.dynatrace.com')
 param dtPlatformUrl string
