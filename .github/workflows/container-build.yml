@@ -5,12 +5,16 @@ on:
     paths:
       - "agent-runtime/**"
       - "deploy/local/**"
+      - "dynatrace-app/src/functions/**"
+      - "dynatrace-app/tests/integration/**"
       - ".github/workflows/container-build.yml"
   push:
     branches: [main]
     paths:
       - "agent-runtime/**"
       - "deploy/local/**"
+      - "dynatrace-app/src/functions/**"
+      - "dynatrace-app/tests/integration/**"
       - ".github/workflows/container-build.yml"
   workflow_dispatch:
 
@@ -93,6 +97,14 @@ jobs:
           ROCKY_IT_URL: http://127.0.0.1:4096
           ROCKY_IT_PASSWORD: ci-integration-password-0123
         run: npm run test:integration
+      - name: App function integration tests (live runtime, in-memory Resource Store)
+        working-directory: dynatrace-app
+        env:
+          ROCKY_IT_URL: http://127.0.0.1:4096
+          ROCKY_IT_PASSWORD: ci-integration-password-0123
+        run: |
+          npm ci --no-audit --no-fund
+          npx jest --ci --selectProjects unit tests/integration
       - name: Container logs
         if: failure()
         run: docker compose -f deploy/local/docker-compose.ci.yml logs --no-color | tail -n 300

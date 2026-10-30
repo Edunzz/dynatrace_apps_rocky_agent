@@ -1,0 +1,138 @@
+{
+  "$schema": "https://developer.dynatrace.com/docs-assets/schema_strict_apps.json",
+  "dynatrace": "1",
+  "schemaId": "runtime-connections",
+  "version": "1.0.0",
+  "displayName": "Rocky Agent runtime connections",
+  "description": "Connections to Rocky Agent runtimes. Each connection is visible only to its owner. Passwords are stored as secrets that only the app's backend functions can read.",
+  "multiObject": true,
+  "maxObjects": 100,
+  "ownerBasedAccessControl": true,
+  "summaryPattern": "{displayName} ({runtimeUrl})",
+  "constraints": [
+    {
+      "type": "SECRET_RESUBMISSION",
+      "checkAllProperties": false
+    }
+  ],
+  "enums": {
+    "AuthMode": {
+      "displayName": "Password storage",
+      "type": "enum",
+      "items": [
+        { "value": "settings-secret", "displayName": "Stored as an owner-only secret" },
+        { "value": "credential-vault", "displayName": "Credential Vault reference" },
+        { "value": "memory-only", "displayName": "Ask every session (kept in memory only)" }
+      ]
+    }
+  },
+  "properties": {
+    "displayName": {
+      "displayName": "Connection name",
+      "type": "text",
+      "nullable": false,
+      "default": "",
+      "constraints": [
+        { "type": "NOT_BLANK" },
+        { "type": "LENGTH", "minLength": 1, "maxLength": 100 }
+      ]
+    },
+    "runtimeUrl": {
+      "displayName": "Runtime URL",
+      "description": "HTTPS URL of the Rocky gateway, for example https://rocky-agent.example.com",
+      "type": "text",
+      "nullable": false,
+      "default": "",
+      "forceSecretResubmission": true,
+      "constraints": [
+        { "type": "LENGTH", "minLength": 8, "maxLength": 500 },
+        { "type": "NO_WHITESPACE" },
+        {
+          "type": "PATTERN",
+          "pattern": "^(https://[^/@\\s]+|http://(localhost|127\\.0\\.0\\.1)(:[0-9]{1,5})?)(/[^\\s?#@]*)?$",
+          "customMessage": "Use an HTTPS URL without credentials. http:// is only allowed for localhost during development."
+        }
+      ]
+    },
+    "username": {
+      "displayName": "Username",
+      "type": "text",
+      "nullable": false,
+      "default": "opencode",
+      "forceSecretResubmission": true,
+      "constraints": [
+        { "type": "LENGTH", "minLength": 1, "maxLength": 64 },
+        { "type": "PATTERN", "pattern": "^[A-Za-z0-9._-]+$" }
+      ]
+    },
+    "authMode": {
+      "displayName": "Password storage",
+      "type": { "$ref": "#/enums/AuthMode" },
+      "nullable": false,
+      "default": "settings-secret"
+    },
+    "password": {
+      "displayName": "Password",
+      "description": "Readable only by this app's backend functions; masked everywhere else.",
+      "type": "secret",
+      "nullable": true,
+      "precondition": {
+        "type": "EQUALS",
+        "property": "authMode",
+        "expectedValue": "settings-secret"
+      }
+    },
+    "credentialVaultId": {
+      "displayName": "Credential Vault ID",
+      "description": "Username/password credential, for example CREDENTIALS_VAULT-0123456789ABCDEF",
+      "type": "text",
+      "nullable": true,
+      "precondition": {
+        "type": "EQUALS",
+        "property": "authMode",
+        "expectedValue": "credential-vault"
+      },
+      "constraints": [{ "type": "PATTERN", "pattern": "^CREDENTIALS_VAULT-[A-Z0-9]+$" }]
+    },
+    "tlsVerification": {
+      "displayName": "TLS verification",
+      "description": "Always enforced by the Dynatrace JavaScript runtime; recorded for documentation.",
+      "type": "boolean",
+      "nullable": false,
+      "default": true
+    },
+    "customCaReference": {
+      "displayName": "Custom CA reference",
+      "description": "Optional reference to the CA that issued the runtime certificate (documentation only).",
+      "type": "text",
+      "nullable": true,
+      "constraints": [{ "type": "LENGTH", "maxLength": 300 }]
+    },
+    "timeoutSeconds": {
+      "displayName": "Connection timeout (seconds)",
+      "type": "integer",
+      "nullable": false,
+      "default": 30,
+      "constraints": [{ "type": "RANGE", "minimum": 5, "maximum": 100 }]
+    },
+    "lastSuccessfulConnection": {
+      "displayName": "Last successful connection",
+      "type": "text",
+      "nullable": true
+    },
+    "runtimeVersion": {
+      "displayName": "Runtime version",
+      "type": "text",
+      "nullable": true
+    },
+    "capabilities": {
+      "displayName": "Runtime capabilities",
+      "type": "list",
+      "nullable": true,
+      "items": {
+        "displayName": "Capability",
+        "type": "text"
+      }
+    }
+  }
+}

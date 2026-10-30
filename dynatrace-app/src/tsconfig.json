@@ -1,0 +1,38 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "esModuleInterop": true,
+    "importHelpers": false,
+    "jsx": "react",
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "esnext"
+    ],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "noEmit": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "sourceMap": true,
+    "target": "ESNext",
+    "resolveJsonModule": true,
+    "rootDir": "..",
+    "types": [
+      "node"
+    ],
+    "typeRoots": [
+      "../node_modules/@types",
+      "../node_modules/@dynatrace"
+    ]
+  },
+  "include": [
+    "./**/*.ts",
+    "./**/*.tsx"
+  ],
+  "exclude": [
+    "../node_modules",
+    "../dist",
+    "./api"
+  ]
+}

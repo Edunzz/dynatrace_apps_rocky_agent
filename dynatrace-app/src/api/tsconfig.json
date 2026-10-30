@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "esnext",
+    "strict": true,
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "lib": [
+      "esnext",
+      "es2021.intl",
+      "dom"
+    ],
+    "skipLibCheck": true,
+    "typeRoots": [
+      "../../node_modules/@dynatrace/js-runtime/types",
+      "../../node_modules/@types"
+    ],
+    "types": [
+      "node",
+      "runtime"
+    ]
+  },
+  "include": [
+    "./**/*.ts",
+    "../functions/**/*.ts",
+    "../utils/**/*.ts",
+    "../models/**/*.ts"
+  ],
+  "exclude": [
+    "../**/*.test.ts",
+    "../**/*.test.tsx"
+  ]
+}
