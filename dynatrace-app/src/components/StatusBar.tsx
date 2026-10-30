@@ -1,12 +1,12 @@
 import { Button } from "@dynatrace/strato-components/buttons";
-import { Text } from "@dynatrace/strato-components/typography";
-import { RefreshIcon } from "@dynatrace/strato-icons";
+import { CloseSidebarIcon, OpenSidebarIcon, RefreshIcon } from "@dynatrace/strato-icons";
 import React from "react";
 import { useConnection } from "../app/ConnectionContext";
 import { useRuntimeData } from "../app/RuntimeDataContext";
-import { Console, stateLabel, stateTone } from "../app/theme";
+import { stateLabel, stateTone } from "../app/theme";
 import type { RuntimeStatus } from "../models/runtime";
 import { errorMessage, RockyError } from "../services/functions";
+import { RockyLogo } from "./RockyLogo";
 import { StatusLight } from "./StatusLight";
 
 const AUTH_METHODS: Record<string, string> = {
@@ -31,9 +31,14 @@ function claudeLight(claude: RuntimeStatus["claude"]) {
   }
 }
 
+export interface StatusBarProps {
+  sidebarCollapsed?: boolean;
+  onToggleSidebar?: () => void;
+}
+
 // Independent status indicators for every layer: runtime, Claude Code, Claude
 // sign-in, Dynatrace, dtctl, skills and the runtime version.
-export function StatusBar() {
+export function StatusBar({ sidebarCollapsed = false, onToggleSidebar }: StatusBarProps) {
   const { active, connectionRef, needsPassword } = useConnection();
   const { status } = useRuntimeData();
   const s = status.data;
@@ -67,43 +72,43 @@ export function StatusBar() {
     : [];
 
   return (
-    <header
-      aria-label="Runtime status"
-      style={{
-        display: "flex",
-        flexWrap: "wrap",
-        alignItems: "center",
-        gap: 8,
-        padding: "8px 16px",
-        background: Console.background,
-        borderBottom: `1px solid ${Console.border}`,
-      }}
-    >
-      <Text style={{ color: Console.green, fontFamily: Console.mono, fontWeight: 700, letterSpacing: 1, marginRight: 8 }}>
-        ROCKY://AGENT
-      </Text>
-      <StatusLight label="Runtime" value={runtimeValue} tone={runtimeTone} detail={error ? errorMessage(error) : active?.displayName} />
-      {lights.map((light) => (
-        <StatusLight key={light.label} {...light} />
-      ))}
-      {reachable && s && (
-        <Text style={{ color: Console.muted, fontFamily: Console.mono, fontSize: 12, marginLeft: "auto" }}>
-          runtime v{s.runtime.version}
-        </Text>
-      )}
-      {connectionRef && (
-        <Button
-          size="condensed"
-          aria-label="Refresh runtime status"
-          onClick={() => status.refresh()}
-          style={{ marginLeft: reachable ? 0 : "auto" }}
-        >
-          <Button.Prefix>
-            <RefreshIcon />
-          </Button.Prefix>
-          Refresh
-        </Button>
-      )}
+    <header aria-label="Runtime status" className="rk-topbar">
+      <div className="rk-brand">
+        {onToggleSidebar && (
+          <Button
+            size="condensed"
+            variant="default"
+            aria-label={sidebarCollapsed ? "Show sessions" : "Hide sessions"}
+            aria-expanded={!sidebarCollapsed}
+            title={sidebarCollapsed ? "Show sessions" : "Hide sessions"}
+            onClick={onToggleSidebar}
+          >
+            <Button.Prefix>{sidebarCollapsed ? <OpenSidebarIcon /> : <CloseSidebarIcon />}</Button.Prefix>
+          </Button>
+        )}
+        <RockyLogo size={28} />
+        <div>
+          <span className="rk-brand__name">Rocky Agent</span>
+          <span className="rk-brand__tag">Investigations for Dynatrace</span>
+        </div>
+      </div>
+      <div className="rk-lights">
+        <StatusLight label="Runtime" value={runtimeValue} tone={runtimeTone} detail={error ? errorMessage(error) : active?.displayName} />
+        {lights.map((light) => (
+          <StatusLight key={light.label} {...light} />
+        ))}
+      </div>
+      <div className="rk-topbar__end">
+        {reachable && s && <span className="rk-small rk-mono">v{s.runtime.version}</span>}
+        {connectionRef && (
+          <Button size="condensed" aria-label="Refresh runtime status" onClick={() => status.refresh()}>
+            <Button.Prefix>
+              <RefreshIcon />
+            </Button.Prefix>
+            Refresh
+          </Button>
+        )}
+      </div>
     </header>
   );
 }

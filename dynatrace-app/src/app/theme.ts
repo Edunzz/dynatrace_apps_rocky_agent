@@ -1,37 +1,27 @@
 import Colors from "@dynatrace/strato-design-tokens/colors";
 import type { ComponentState } from "../models/runtime";
 
-// Console palette for the command surfaces (dark operations-center look).
-// Contrast on `surface`: text ≈ 15:1, muted ≈ 7.5:1, accents ≥ 8:1 (WCAG AA+).
-export const Console = {
-  background: "#07090d",
-  surface: "#0d1117",
-  surfaceRaised: "#131a23",
-  border: "#243142",
-  text: "#e6edf3",
-  muted: "#9aa7b4",
-  green: "#39ff88",
-  cyan: "#22d3ee",
-  orange: "#ffa53d",
-  red: "#ff5c6c",
-  mono: "'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, 'Liberation Mono', monospace",
+// Every color is a Strato design token (a CSS custom property), so the app
+// follows the user's light or dark Dynatrace theme without any code of its own.
+export const Ui = {
+  text: Colors.Text.Neutral.Default,
+  muted: Colors.Text.Neutral.Subdued,
+  primary: Colors.Text.Primary.Default,
+  success: Colors.Text.Success.Default,
+  warning: Colors.Text.Warning.Default,
+  critical: Colors.Text.Critical.Default,
+  mono: "var(--dt-typography-code-base-default-family, 'Roboto Mono', monospace)",
 } as const;
 
-export type Tone = "ok" | "warn" | "critical" | "neutral";
+export type Tone = "ok" | "info" | "warn" | "critical" | "neutral";
 
+// Lamp colors: the accent tokens stay vivid on both themes.
 export const toneColor: Record<Tone, string> = {
-  ok: Console.green,
-  warn: Console.orange,
-  critical: Console.red,
-  neutral: Console.muted,
-};
-
-// Chrome colors follow the user's Dynatrace theme through Strato tokens.
-export const Chrome = {
-  text: Colors.Text.Neutral.Default,
-  border: Colors.Border.Neutral.Default,
-  surface: Colors.Background.Surface.Default,
-  base: Colors.Background.Base.Default,
+  ok: Colors.Background.Container.Success.Accent,
+  info: Colors.Background.Container.Primary.Accent,
+  warn: Colors.Background.Container.Warning.Accent,
+  critical: Colors.Background.Container.Critical.Accent,
+  neutral: Colors.Border.Neutral.Accent,
 };
 
 export function stateTone(state: ComponentState | undefined): Tone {

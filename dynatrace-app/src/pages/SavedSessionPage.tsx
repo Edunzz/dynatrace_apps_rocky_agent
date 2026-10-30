@@ -1,7 +1,7 @@
 import { Button } from "@dynatrace/strato-components/buttons";
 import { Chip, Markdown, MessageContainer, ProgressCircle } from "@dynatrace/strato-components/content";
-import { Flex, Surface } from "@dynatrace/strato-components/layouts";
-import { Code, Heading, Paragraph, Text } from "@dynatrace/strato-components/typography";
+import { Flex } from "@dynatrace/strato-components/layouts";
+import { Code } from "@dynatrace/strato-components/typography";
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useRuntimeData } from "../app/RuntimeDataContext";
@@ -42,7 +42,7 @@ export function SavedSessionPage() {
   }, [load]);
 
   return (
-    <Flex flexDirection="column" gap={16} padding={24} style={{ maxWidth: 1100, margin: "0 auto" }}>
+    <div className="rk-page rk-page--narrow">
       {error && (
         <MessageContainer variant="critical">
           <MessageContainer.Description>{error}</MessageContainer.Description>
@@ -51,34 +51,34 @@ export function SavedSessionPage() {
       {!detail && !error && <ProgressCircle aria-label="Loading saved session" />}
       {detail && (
         <>
-          <Flex alignItems="center" gap={12} flexWrap="wrap">
-            <Heading level={2} style={{ flex: "1 1 320px", overflowWrap: "anywhere" }}>
-              {detail.title}
-            </Heading>
-            <Chip color="neutral">Saved in Dynatrace</Chip>
-            {detail.integrityVerified ? (
-              <Chip color="success">Integrity verified</Chip>
-            ) : (
-              <Chip color="critical">Integrity check failed</Chip>
-            )}
-          </Flex>
-          <Paragraph style={{ fontSize: 13 }}>
-            Saved {new Date(detail.savedAt).toLocaleString()} · model {detail.modelProvider || "unknown"}/{detail.modelId || "unknown"} ·
-            SHA-256 <Code>{detail.contentSha256.slice(0, 16)}…</Code>
-          </Paragraph>
-          <Text style={{ fontSize: 12, opacity: 0.85 }}>
-            Immutable snapshot: the content cannot be edited. You can rename the display title or delete it permanently.
-          </Text>
-          <Flex gap={8} flexWrap="wrap">
-            <Button onClick={() => setModal("rename")}>Rename</Button>
-            <Button onClick={() => download(detail.title, detail.markdown)}>Download Markdown</Button>
-            <Button color="critical" onClick={() => setModal("delete")}>
-              Delete permanently
-            </Button>
-          </Flex>
-          <Surface padding={16}>
+          <header className="rk-card rk-stack">
+            <div className="rk-row" style={{ gap: 12 }}>
+              <h1 className="rk-subtitle" style={{ flex: "1 1 320px" }}>
+                {detail.title}
+              </h1>
+              <Chip color="neutral">Saved in Dynatrace</Chip>
+              {detail.integrityVerified ? (
+                <Chip color="success">Integrity verified</Chip>
+              ) : (
+                <Chip color="critical">Integrity check failed</Chip>
+              )}
+            </div>
+            <p className="rk-small">
+              Saved {new Date(detail.savedAt).toLocaleString()} · model {detail.modelProvider || "unknown"}/{detail.modelId || "unknown"} ·
+              SHA-256 <Code>{detail.contentSha256.slice(0, 16)}…</Code>
+            </p>
+            <p className="rk-small">Immutable snapshot: the content cannot be edited. You can rename the display title or delete it permanently.</p>
+            <Flex gap={8} flexWrap="wrap">
+              <Button onClick={() => setModal("rename")}>Rename</Button>
+              <Button onClick={() => download(detail.title, detail.markdown)}>Download Markdown</Button>
+              <Button color="critical" onClick={() => setModal("delete")}>
+                Delete permanently
+              </Button>
+            </Flex>
+          </header>
+          <article className="rk-card rk-chat">
             <Markdown>{detail.markdown}</Markdown>
-          </Surface>
+          </article>
           <RenameModal
             show={modal === "rename"}
             currentTitle={detail.title}
@@ -103,6 +103,6 @@ export function SavedSessionPage() {
           />
         </>
       )}
-    </Flex>
+    </div>
   );
 }

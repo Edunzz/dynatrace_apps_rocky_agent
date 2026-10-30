@@ -1,6 +1,6 @@
 {
   "name": "rocky-agent-app",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "private": true,
   "description": "Dynatrace App for Rocky Agent, an AI agent for Dynatrace powered by Claude.",
   "license": "MIT",

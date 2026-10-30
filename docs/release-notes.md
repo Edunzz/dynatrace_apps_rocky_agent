@@ -1,5 +1,21 @@
 # Release notes
 
+## App 0.2.4
+
+Visual redesign; behavior is unchanged and the runtime stays at 0.2.2.
+
+* Follows the light or dark Dynatrace theme: every color is a Strato design
+  token instead of the fixed dark console palette.
+* App icon and logo: Rocky, a faceted rock on five legs (`icon.svg`).
+* Cleaner layout: status pills in the top bar, prompt cards with icons, a
+  composer with the start button, and a session page with the conversation,
+  a side rail for tasks and artifacts, and a composer that stays in view.
+* The conversation has a darker background than the cards around it; your
+  messages are bubbles and each tool run is a compact row that expands.
+* The session sidebar can be hidden from the top bar (remembered per browser),
+  and the open session is highlighted again.
+* Warnings that mix text and commands read as one paragraph.
+
 ## 0.2.2
 
 * Fix: the runtime failed to start a second time with a persistent home volume

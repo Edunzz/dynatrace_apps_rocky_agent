@@ -30,7 +30,8 @@ Saved sessions ───── functions.call ──▶ session-store    ──�
 
 | Path | Contents |
 |---|---|
-| `src/main.tsx`, `src/app/` | Entry point, routes, contexts, theme, deployment guides |
+| `src/main.tsx`, `src/app/` | Entry point, routes, contexts, theme tokens and `styles.css`, deployment guides |
+| `icon.svg` | App icon: the `RockyLogo` component rendered at 128 px (`UPDATE_ICON=1 npx jest tests/ui/logo.test.tsx` regenerates it) |
 | `src/pages/` | Welcome (connection), Agent home, Session, Saved session |
 | `src/components/` | Status bar and lights, sidebar, prompt cards, timeline, modals |
 | `src/hooks/` | Polling hooks and the `SessionPoller` |

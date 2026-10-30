@@ -1,14 +1,14 @@
 import { Markdown, MessageContainer } from "@dynatrace/strato-components/content";
-import { Text } from "@dynatrace/strato-components/typography";
+import { ChevronRightSmallIcon } from "@dynatrace/strato-icons";
 import React from "react";
-import { Console } from "../app/theme";
+import { type Tone, toneColor, Ui } from "../app/theme";
 import type { OcMessage, OcPart, OcToolPart } from "../models/runtime";
 
-const TOOL_COLORS: Record<string, string> = {
-  pending: Console.muted,
-  running: Console.cyan,
-  completed: Console.green,
-  error: Console.red,
+const TOOL_STATUS: Record<string, { tone: Tone; text: string }> = {
+  pending: { tone: "neutral", text: Ui.muted },
+  running: { tone: "info", text: Ui.primary },
+  completed: { tone: "ok", text: Ui.success },
+  error: { tone: "critical", text: Ui.critical },
 };
 
 function time(ms: number | undefined): string {
@@ -21,30 +21,40 @@ function truncate(text: string, max = 4000): string {
 
 function ToolActivity({ part }: { part: OcToolPart }) {
   const state = part.state;
-  const color = TOOL_COLORS[state.status] ?? Console.muted;
+  const status = TOOL_STATUS[state.status] ?? TOOL_STATUS.pending;
   const title = "title" in state && state.title ? state.title : "";
   const input = state.input && Object.keys(state.input).length > 0 ? JSON.stringify(state.input, null, 2) : "";
   return (
-    <details style={{ margin: "4px 0 4px 20px", borderLeft: `2px solid ${color}`, paddingLeft: 10 }}>
-      <summary style={{ cursor: "pointer", color: Console.text, fontFamily: Console.mono, fontSize: 13 }}>
-        <span aria-hidden="true" style={{ color }}>
-          ●{" "}
+    <details className="rk-tool">
+      <summary>
+        <span className="rk-tool__chev" aria-hidden="true">
+          <ChevronRightSmallIcon />
         </span>
-        <span style={{ color: Console.cyan }}>{part.tool}</span>
-        {title ? <span style={{ color: Console.muted }}> — {title}</span> : null}
-        <span style={{ color }}> [{state.status}]</span>
+        <span aria-hidden="true" className="rk-dot" data-tone={status.tone} style={{ "--rk-dot": toneColor[status.tone] } as React.CSSProperties} />
+        <span className="rk-tool__name">{part.tool}</span>
+        <span className="rk-tool__title">{title}</span>
+        <span className="rk-tool__status" style={{ color: status.text }}>
+          {state.status}
+        </span>
       </summary>
       {input && (
-        <pre style={{ color: Console.muted, fontFamily: Console.mono, fontSize: 12, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-          {truncate(input, 2000)}
-        </pre>
+        <div className="rk-tool__section">
+          <p className="rk-tool__label">Input</p>
+          <pre>{truncate(input, 2000)}</pre>
+        </div>
       )}
       {state.status === "completed" && state.output && (
-        <pre style={{ color: Console.text, fontFamily: Console.mono, fontSize: 12, whiteSpace: "pre-wrap", overflowWrap: "anywhere", maxHeight: 320, overflowY: "auto" }}>
-          {truncate(state.output)}
-        </pre>
+        <div className="rk-tool__section">
+          <p className="rk-tool__label">Output</p>
+          <pre>{truncate(state.output)}</pre>
+        </div>
       )}
-      {state.status === "error" && <Text style={{ color: Console.red, fontFamily: Console.mono, fontSize: 12 }}>{state.error}</Text>}
+      {state.status === "error" && (
+        <div className="rk-tool__section">
+          <p className="rk-tool__label">Error</p>
+          <pre style={{ color: Ui.critical }}>{state.error}</pre>
+        </div>
+      )}
     </details>
   );
 }
@@ -54,7 +64,7 @@ function PartView({ part }: { part: OcPart }) {
     case "text":
       if (part.synthetic || part.ignored || !part.text.trim()) return null;
       return (
-        <div style={{ color: Console.text }}>
+        <div>
           <Markdown>{part.text}</Markdown>
         </div>
       );
@@ -62,14 +72,16 @@ function PartView({ part }: { part: OcPart }) {
       return <ToolActivity part={part} />;
     case "subtask":
       return (
-        <div style={{ margin: "4px 0 4px 20px", paddingLeft: 10, borderLeft: `2px dashed ${Console.orange}` }}>
-          <Text style={{ color: Console.orange, fontFamily: Console.mono, fontSize: 13 }}>
-            ↳ subagent {part.agent}: {part.description}
-          </Text>
+        <div className="rk-subtask">
+          ↳ Subagent {part.agent}: {part.description}
         </div>
       );
     case "file":
-      return <Text style={{ color: Console.muted, fontSize: 12 }}>Attached file: {part.filename ?? "unnamed"} ({part.mime})</Text>;
+      return (
+        <p className="rk-small">
+          Attached file: {part.filename ?? "unnamed"} ({part.mime})
+        </p>
+      );
     default:
       // Reasoning, step markers, snapshots and patches are not shown.
       return null;
@@ -78,30 +90,36 @@ function PartView({ part }: { part: OcPart }) {
 
 export function MessageTimeline({ messages, busy }: { messages: OcMessage[]; busy: boolean }) {
   if (messages.length === 0) {
-    return <Text style={{ color: Console.muted }}>{busy ? "Waiting for the agent…" : "No messages yet."}</Text>;
+    return <p className="rk-small">{busy ? "Waiting for the agent…" : "No messages yet."}</p>;
   }
   return (
-    <ol aria-label="Conversation" style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 16 }}>
+    <ol aria-label="Conversation" className="rk-timeline">
       {messages.map((m) => {
         const isUser = m.info.role === "user";
         const error = m.info.role === "assistant" ? m.info.error : undefined;
         const model = m.info.role === "assistant" ? [m.info.providerID, m.info.modelID].filter(Boolean).join("/") : "";
+        const parts = m.parts.map((p) => <PartView key={p.id} part={p} />);
+        if (isUser) {
+          return (
+            <li key={m.info.id} aria-label="Your message" className="rk-msg rk-msg--user">
+              <div className="rk-msg__meta">
+                <span className="rk-msg__author">You</span>
+                <span>{time(m.info.time.created)}</span>
+              </div>
+              <div className="rk-bubble">{parts}</div>
+            </li>
+          );
+        }
         return (
-          <li key={m.info.id} aria-label={isUser ? "Your message" : "Agent message"}>
-            <div style={{ display: "flex", gap: 8, alignItems: "baseline", marginBottom: 4 }}>
-              <Text style={{ color: isUser ? Console.cyan : Console.green, fontFamily: Console.mono, fontWeight: 700 }}>
-                {isUser ? "you ›" : "rocky ›"}
-              </Text>
-              <Text style={{ color: Console.muted, fontFamily: Console.mono, fontSize: 11 }}>
-                {time(m.info.time.created)}
-                {model ? ` · ${model}` : ""}
-                {m.info.agent && !isUser ? ` · ${m.info.agent}` : ""}
-              </Text>
-            </div>
-            <div style={{ paddingLeft: isUser ? 0 : 4 }}>
-              {m.parts.map((p) => (
-                <PartView key={p.id} part={p} />
-              ))}
+          <li key={m.info.id} aria-label="Agent message" className="rk-msg">
+            <div className="rk-msg__body">
+              <div className="rk-msg__meta">
+                <span className="rk-msg__author">Rocky</span>
+                <span>{time(m.info.time.created)}</span>
+                {model ? <span className="rk-mono">{model}</span> : null}
+                {m.info.agent ? <span>{m.info.agent}</span> : null}
+              </div>
+              {parts}
               {error && (
                 <MessageContainer variant="critical">
                   <MessageContainer.Description>

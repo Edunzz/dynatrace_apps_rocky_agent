@@ -121,7 +121,9 @@ export function StartSessionModal({ show, connection, prompt, onClose, onStarted
               {policyError ? (
                 <MessageContainer variant="warning">
                   <MessageContainer.Description>
-                    The baseline could not be loaded ({policyError}). It still applies inside the runtime.
+                    <span>
+                      The baseline could not be loaded ({policyError}). It still applies inside the runtime.
+                    </span>
                   </MessageContainer.Description>
                 </MessageContainer>
               ) : !policy ? (

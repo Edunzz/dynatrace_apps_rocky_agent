@@ -1,17 +1,17 @@
 import { Button } from "@dynatrace/strato-components/buttons";
 import { Chip, MessageContainer } from "@dynatrace/strato-components/content";
-import { Flex, Surface } from "@dynatrace/strato-components/layouts";
-import { ExternalLink, Heading, Paragraph, Strong, Text } from "@dynatrace/strato-components/typography";
+import { Flex } from "@dynatrace/strato-components/layouts";
+import { ExternalLink, Heading } from "@dynatrace/strato-components/typography";
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useConnection } from "../app/ConnectionContext";
 import { useRuntimeData } from "../app/RuntimeDataContext";
 import { REPO } from "../app/deploymentGuides";
-import { Console } from "../app/theme";
 import { ConnectionForm } from "../components/ConnectionForm";
 import { DeploymentGuide } from "../components/DeploymentGuide";
 import { ConfirmModal } from "../components/modals";
 import { PlatformTokenGuide } from "../components/PlatformTokenGuide";
+import { RockyLogo } from "../components/RockyLogo";
 import type { StoredConnection } from "../models/connection";
 import { connectionsApi } from "../services/connections";
 
@@ -24,24 +24,17 @@ export function WelcomePage() {
   const [removing, setRemoving] = useState<StoredConnection | null>(null);
 
   return (
-    <Flex flexDirection="column" gap={24} padding={24} style={{ maxWidth: 1400, margin: "0 auto" }}>
-      <header
-        style={{
-          background: Console.surface,
-          border: `1px solid ${Console.border}`,
-          borderRadius: 16,
-          padding: 24,
-          color: Console.text,
-        }}
-      >
-        <Text style={{ color: Console.green, fontFamily: Console.mono, letterSpacing: 2, fontSize: 12 }}>ROCKY AGENT</Text>
-        <Heading level={1} style={{ color: Console.text, margin: "8px 0" }}>
-          Connect your Rocky Agent runtime
-        </Heading>
-        <Paragraph style={{ color: Console.muted, maxWidth: 860 }}>
-          Run the Rocky Agent container anywhere your Dynatrace App can securely reach it. You can use Docker, Amazon ECS, Azure
-          Container Apps, Kubernetes, or an existing compatible runtime.
-        </Paragraph>
+    <div className="rk-page">
+      <header className="rk-card rk-hero rk-hero--split">
+        <RockyLogo size={64} />
+        <div className="rk-stack" style={{ gap: 6 }}>
+          <p className="rk-eyebrow">Rocky Agent</p>
+          <h1 className="rk-title">Connect your Rocky Agent runtime</h1>
+          <p className="rk-lead">
+            Run the Rocky Agent container anywhere your Dynatrace App can securely reach it. You can use Docker, Amazon ECS, Azure
+            Container Apps, Kubernetes, or an existing compatible runtime.
+          </p>
+        </div>
       </header>
 
       <MessageContainer variant="warning">
@@ -61,42 +54,40 @@ export function WelcomePage() {
 
       {connections.length > 0 && (
         <section aria-labelledby="connections-heading">
-          <Heading level={3} id="connections-heading">
+          <Heading level={4} id="connections-heading">
             Your runtime connections
           </Heading>
           <Flex flexDirection="column" gap={8} style={{ marginTop: 8 }}>
             {connections.map((c) => (
-              <Surface key={c.objectId} padding={12}>
-                <Flex alignItems="center" gap={12} flexWrap="wrap">
-                  <div style={{ flex: "1 1 260px" }}>
-                    <Strong>{c.displayName}</Strong>
-                    <Text style={{ display: "block", fontSize: 12, opacity: 0.8 }}>{c.runtimeUrl}</Text>
-                    <Text style={{ fontSize: 12, opacity: 0.8 }}>
-                      {c.lastSuccessfulConnection ? `Last successful connection ${new Date(c.lastSuccessfulConnection).toLocaleString()}` : "Not verified yet"}
-                      {c.runtimeVersion ? ` · v${c.runtimeVersion}` : ""}
-                    </Text>
-                  </div>
-                  {active?.objectId === c.objectId && (
-                    <Chip color={status.error ? "critical" : status.data ? "success" : "neutral"}>
-                      {status.error ? "Active · unavailable" : status.data ? "Active · connected" : "Active"}
-                    </Chip>
-                  )}
-                  <Button
-                    variant="emphasized"
-                    color="primary"
-                    onClick={() => {
-                      select(c.objectId);
-                      navigate("/agent");
-                    }}
-                  >
-                    Use
-                  </Button>
-                  <Button onClick={() => { setEditing(c); setCreating(false); }}>Edit</Button>
-                  <Button color="critical" onClick={() => setRemoving(c)}>
-                    Delete
-                  </Button>
-                </Flex>
-              </Surface>
+              <div key={c.objectId} className="rk-card rk-card--compact rk-conn">
+                <div className="rk-conn__main">
+                  <span className="rk-conn__name">{c.displayName}</span>
+                  <span className="rk-conn__url">{c.runtimeUrl}</span>
+                  <p className="rk-small">
+                    {c.lastSuccessfulConnection ? `Last successful connection ${new Date(c.lastSuccessfulConnection).toLocaleString()}` : "Not verified yet"}
+                    {c.runtimeVersion ? ` · v${c.runtimeVersion}` : ""}
+                  </p>
+                </div>
+                {active?.objectId === c.objectId && (
+                  <Chip color={status.error ? "critical" : status.data ? "success" : "neutral"}>
+                    {status.error ? "Active · unavailable" : status.data ? "Active · connected" : "Active"}
+                  </Chip>
+                )}
+                <Button
+                  variant="emphasized"
+                  color="primary"
+                  onClick={() => {
+                    select(c.objectId);
+                    navigate("/agent");
+                  }}
+                >
+                  Use
+                </Button>
+                <Button onClick={() => { setEditing(c); setCreating(false); }}>Edit</Button>
+                <Button color="critical" onClick={() => setRemoving(c)}>
+                  Delete
+                </Button>
+              </div>
             ))}
           </Flex>
           {!creating && !editing && (
@@ -107,24 +98,22 @@ export function WelcomePage() {
         </section>
       )}
 
-      <Surface padding={16}>
-        <section aria-labelledby="token-heading">
-          <Heading level={3} id="token-heading">
-            Dynatrace platform token
-          </Heading>
-          <PlatformTokenGuide />
-        </section>
-      </Surface>
+      <section aria-labelledby="token-heading" className="rk-card">
+        <Heading level={4} id="token-heading">
+          Dynatrace platform token
+        </Heading>
+        <PlatformTokenGuide />
+      </section>
 
       <div style={{ display: "grid", gap: 24, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 440px), 1fr))", alignItems: "start" }}>
-        <section aria-labelledby="deploy-heading">
-          <Heading level={3} id="deploy-heading">
+        <section aria-labelledby="deploy-heading" className="rk-card">
+          <Heading level={4} id="deploy-heading">
             Deploy the runtime
           </Heading>
           <DeploymentGuide />
         </section>
         {(creating || editing) && (
-          <Surface padding={16}>
+          <div className="rk-card">
             <ConnectionForm
               key={editing?.objectId ?? "new"}
               existing={editing}
@@ -138,15 +127,15 @@ export function WelcomePage() {
                 navigate("/agent");
               }}
             />
-          </Surface>
+          </div>
         )}
       </div>
 
-      <Paragraph>
+      <p className="rk-small">
         Documentation: <ExternalLink href={`${REPO}#readme`}>README</ExternalLink> ·{" "}
         <ExternalLink href={`${REPO}/blob/main/SECURITY.md`}>Security</ExternalLink> ·{" "}
         <ExternalLink href={`${REPO}/blob/main/docs/dynatrace-setup.md`}>Dynatrace setup</ExternalLink>
-      </Paragraph>
+      </p>
 
       <ConfirmModal
         show={removing !== null}
@@ -162,6 +151,6 @@ export function WelcomePage() {
           await reload();
         }}
       />
-    </Flex>
+    </div>
   );
 }
