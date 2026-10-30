@@ -104,7 +104,9 @@ export function MessageTimeline({ messages, busy }: { messages: OcMessage[]; bus
               ))}
               {error && (
                 <MessageContainer variant="critical">
-                  {error.data?.message ?? error.name ?? "The model returned an error."}
+                  <MessageContainer.Description>
+                    {error.data?.message ?? error.name ?? "The model returned an error."}
+                  </MessageContainer.Description>
                 </MessageContainer>
               )}
             </div>

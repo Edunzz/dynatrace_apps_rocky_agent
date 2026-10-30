@@ -140,7 +140,9 @@ export function ConnectionForm({ existing, onSaved, onCancel }: ConnectionFormPr
           </FieldHint>
         </FormField>
         {isLocalHttp && (
-          <MessageContainer variant="warning">Plain HTTP is accepted for local development only. Deployed apps cannot reach localhost.</MessageContainer>
+          <MessageContainer variant="warning">
+            <MessageContainer.Description>Plain HTTP is accepted for local development only. Deployed apps cannot reach localhost.</MessageContainer.Description>
+          </MessageContainer>
         )}
 
         <FormField required>
@@ -201,7 +203,11 @@ export function ConnectionForm({ existing, onSaved, onCancel }: ConnectionFormPr
             <MessageContainer.Description>{problems.join(" ")}</MessageContainer.Description>
           </MessageContainer>
         )}
-        {error && <MessageContainer variant="critical">{error}</MessageContainer>}
+        {error && (
+          <MessageContainer variant="critical">
+            <MessageContainer.Description>{error}</MessageContainer.Description>
+          </MessageContainer>
+        )}
         {testResult && <ConnectionTestResults result={testResult} />}
 
         <Flex gap={8} flexWrap="wrap">

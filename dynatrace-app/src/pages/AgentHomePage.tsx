@@ -80,8 +80,10 @@ export function AgentHomePage() {
         )}
         {status.data?.dynatrace.status && status.data.dynatrace.status !== "connected" && (
           <MessageContainer variant="warning">
-            Dynatrace connection: unavailable. {status.data.dynatrace.detail ?? ""} The agent can still run, but Dynatrace queries will
-            fail until the runtime can authenticate.
+            <MessageContainer.Description>
+              Dynatrace connection: unavailable. {status.data.dynatrace.detail ?? ""} The agent can still run, but Dynatrace queries will
+              fail until the runtime can authenticate.
+            </MessageContainer.Description>
           </MessageContainer>
         )}
 

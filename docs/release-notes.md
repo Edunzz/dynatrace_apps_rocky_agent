@@ -8,6 +8,15 @@
   (`rm: cannot remove ... Permission denied`); it now makes the old copy
   writable before replacing it, which also repairs volumes already affected.
 * Image checks start the image twice with the same home volume.
+* App 0.2.2, fix: **Save connection** failed with an empty red box. `dt-app`
+  only deploys settings schemas from `src/settings/schemas/`, and the
+  `runtime-connections` schema was in `settings/schemas/`, so it never reached
+  the tenant and every save returned 404. The schema moved, and it also gets
+  the two fixes the tenant requires to install it (`ordered`, and the
+  `capabilities` list can no longer be null).
+* App 0.2.2, fix: error and warning boxes showed no text. Strato's
+  `MessageContainer` needs its text in `MessageContainer.Description`; a test
+  now checks every use.
 
 ## 0.2.1
 

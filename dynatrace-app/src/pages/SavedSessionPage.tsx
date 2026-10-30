@@ -43,7 +43,11 @@ export function SavedSessionPage() {
 
   return (
     <Flex flexDirection="column" gap={16} padding={24} style={{ maxWidth: 1100, margin: "0 auto" }}>
-      {error && <MessageContainer variant="critical">{error}</MessageContainer>}
+      {error && (
+        <MessageContainer variant="critical">
+          <MessageContainer.Description>{error}</MessageContainer.Description>
+        </MessageContainer>
+      )}
       {!detail && !error && <ProgressCircle aria-label="Loading saved session" />}
       {detail && (
         <>

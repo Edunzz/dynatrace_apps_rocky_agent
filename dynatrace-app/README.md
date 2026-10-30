@@ -38,7 +38,7 @@ Saved sessions ───── functions.call ──▶ session-store    ──�
 | `src/functions/` | Server-side logic used by the functions (testable, injected deps) |
 | `src/api/*.function.ts` | App Function entrypoints (`dt-app` discovers them here) |
 | `src/models/`, `src/utils/` | Types; URL validation, redaction, CSV, Markdown export, hashing |
-| `settings/schemas/` | `runtime-connections` settings schema (owner-based access control) |
+| `src/settings/schemas/` | `runtime-connections` settings schema (owner-based access control; `dt-app` deploys it only from here) |
 | `tests/` | Unit (Node), UI (jsdom) and live-runtime integration tests |
 
 ## Saved sessions

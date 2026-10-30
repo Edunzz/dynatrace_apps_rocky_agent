@@ -58,7 +58,9 @@ export function SessionSidebar() {
         <Paragraph style={{ fontSize: 12, opacity: 0.8 }}>Immutable snapshots in Grail Resource Store.</Paragraph>
         <SearchInput value={query} onChange={(value) => setQuery(value)} placeholder="Search saved sessions" aria-label="Search saved sessions" />
         {saved.error ? (
-          <MessageContainer variant="critical">{errorMessage(saved.error)}</MessageContainer>
+          <MessageContainer variant="critical">
+            <MessageContainer.Description>{errorMessage(saved.error)}</MessageContainer.Description>
+          </MessageContainer>
         ) : filteredSaved.length === 0 ? (
           <Paragraph style={{ fontSize: 12, marginTop: 8 }}>{query ? "No matches." : "No saved sessions yet."}</Paragraph>
         ) : (
@@ -108,7 +110,9 @@ export function SessionSidebar() {
         {!connectionRef ? (
           <Paragraph style={{ fontSize: 12 }}>Connect a runtime to see its sessions.</Paragraph>
         ) : ephemeral.error ? (
-          <MessageContainer variant="critical">{errorMessage(ephemeral.error)}</MessageContainer>
+          <MessageContainer variant="critical">
+            <MessageContainer.Description>{errorMessage(ephemeral.error)}</MessageContainer.Description>
+          </MessageContainer>
         ) : (ephemeral.data ?? []).length === 0 ? (
           <Paragraph style={{ fontSize: 12 }}>No sessions in this runtime.</Paragraph>
         ) : (

@@ -53,7 +53,11 @@ export function WelcomePage() {
         </MessageContainer.Description>
       </MessageContainer>
 
-      {error && <MessageContainer variant="critical">{error}</MessageContainer>}
+      {error && (
+        <MessageContainer variant="critical">
+          <MessageContainer.Description>{error}</MessageContainer.Description>
+        </MessageContainer>
+      )}
 
       {connections.length > 0 && (
         <section aria-labelledby="connections-heading">

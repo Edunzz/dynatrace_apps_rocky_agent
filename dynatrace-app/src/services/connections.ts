@@ -37,7 +37,8 @@ function toValue(draft: ConnectionDraft, currentMaskedPassword?: unknown): Recor
     timeoutSeconds: draft.timeoutSeconds,
     lastSuccessfulConnection: draft.lastSuccessfulConnection ?? null,
     runtimeVersion: draft.runtimeVersion ?? null,
-    capabilities: draft.capabilities ?? null,
+    // Settings lists cannot be null; an empty list means "not tested yet".
+    capabilities: draft.capabilities ?? [],
   };
   if (draft.authMode === "settings-secret") {
     // A new password replaces the secret; otherwise the masked value keeps it.

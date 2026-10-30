@@ -2,10 +2,11 @@
   "$schema": "https://developer.dynatrace.com/docs-assets/schema_strict_apps.json",
   "dynatrace": "1",
   "schemaId": "runtime-connections",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "displayName": "Rocky Agent runtime connections",
   "description": "Connections to Rocky Agent runtimes. Each connection is visible only to its owner. Passwords are stored as secrets that only the app's backend functions can read.",
   "multiObject": true,
+  "ordered": false,
   "maxObjects": 100,
   "ownerBasedAccessControl": true,
   "summaryPattern": "{displayName} ({runtimeUrl})",
@@ -128,7 +129,8 @@
     "capabilities": {
       "displayName": "Runtime capabilities",
       "type": "list",
-      "nullable": true,
+      "nullable": false,
+      "default": [],
       "items": {
         "displayName": "Capability",
         "type": "text"

@@ -120,7 +120,9 @@ export function StartSessionModal({ show, connection, prompt, onClose, onStarted
             <Accordion.SectionContent>
               {policyError ? (
                 <MessageContainer variant="warning">
-                  The baseline could not be loaded ({policyError}). It still applies inside the runtime.
+                  <MessageContainer.Description>
+                    The baseline could not be loaded ({policyError}). It still applies inside the runtime.
+                  </MessageContainer.Description>
                 </MessageContainer>
               ) : !policy ? (
                 <ProgressCircle size="small" aria-label="Loading policy" />
@@ -161,7 +163,11 @@ export function StartSessionModal({ show, connection, prompt, onClose, onStarted
         <Checkbox value={saveDefault} onChange={(v) => setSaveDefault(v)} disabled={!overlay.trim()}>
           Save as my default policy (stored in my own user app state)
         </Checkbox>
-        {error && <MessageContainer variant="critical">{error}</MessageContainer>}
+        {error && (
+          <MessageContainer variant="critical">
+            <MessageContainer.Description>{error}</MessageContainer.Description>
+          </MessageContainer>
+        )}
       </Flex>
     </Modal>
   );

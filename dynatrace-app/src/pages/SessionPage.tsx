@@ -152,7 +152,7 @@ export function SessionPage() {
           </Flex>
           {actionError && (
             <MessageContainer variant="critical" style={{ marginTop: 12 }}>
-              {actionError}
+              <MessageContainer.Description>{actionError}</MessageContainer.Description>
             </MessageContainer>
           )}
         </div>
@@ -200,7 +200,9 @@ export function SessionPage() {
           {!chat.initialized && chat.polling ? <ProgressCircle aria-label="Loading conversation" /> : <MessageTimeline messages={chat.messages} busy={chat.busy} />}
           {chat.error ? (
             <MessageContainer variant="critical" style={{ marginTop: 12 }}>
-              {errorMessage(chat.error)} {chat.polling ? "Retrying…" : ""}
+              <MessageContainer.Description>
+                {errorMessage(chat.error)} {chat.polling ? "Retrying…" : ""}
+              </MessageContainer.Description>
             </MessageContainer>
           ) : null}
           {(chat.stalled || (!chat.polling && chat.initialized)) && (

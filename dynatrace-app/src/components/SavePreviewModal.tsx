@@ -117,7 +117,11 @@ export function SavePreviewModal({ show, connection, sessionId, onClose, onSaved
             </Checkbox>
           </>
         )}
-        {error && <MessageContainer variant="critical">{error}</MessageContainer>}
+        {error && (
+          <MessageContainer variant="critical">
+            <MessageContainer.Description>{error}</MessageContainer.Description>
+          </MessageContainer>
+        )}
       </Flex>
     </Modal>
   );

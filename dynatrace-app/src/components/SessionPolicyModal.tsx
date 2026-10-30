@@ -60,9 +60,15 @@ export function SessionPolicyModal({ show, api, sessionId, onClose }: { show: bo
           <FieldHint>Applied after the protected baseline to the next prompts in this session. Kept in runtime memory only.</FieldHint>
         </FormField>
         {findings.length > 0 && (
-          <MessageContainer variant="critical">{findings.map((f) => `Line ${f.line} ${f.reason}.`).join(" ")}</MessageContainer>
+          <MessageContainer variant="critical">
+            <MessageContainer.Description>{findings.map((f) => `Line ${f.line} ${f.reason}.`).join(" ")}</MessageContainer.Description>
+          </MessageContainer>
         )}
-        {error && <MessageContainer variant="critical">{error}</MessageContainer>}
+        {error && (
+          <MessageContainer variant="critical">
+            <MessageContainer.Description>{error}</MessageContainer.Description>
+          </MessageContainer>
+        )}
       </Flex>
     </Modal>
   );

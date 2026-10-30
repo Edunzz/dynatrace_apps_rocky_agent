@@ -83,7 +83,11 @@ export function ConfirmDeleteModal({ show, title, itemName, onConfirm, onClose }
           <Label>Type {DELETE_CONFIRMATION} to confirm</Label>
           <TextInput value={typed} onChange={(value) => setTyped(value)} autoComplete="off" />
         </FormField>
-        {action.error && <MessageContainer variant="critical">{action.error}</MessageContainer>}
+        {action.error && (
+          <MessageContainer variant="critical">
+            <MessageContainer.Description>{action.error}</MessageContainer.Description>
+          </MessageContainer>
+        )}
       </Flex>
     </Modal>
   );
@@ -135,7 +139,11 @@ export function RenameModal({ show, currentTitle, description, onSave, onClose }
           <Label>Title</Label>
           <TextInput value={title} onChange={(value) => setTitle(value)} maxLength={200} />
         </FormField>
-        {action.error && <MessageContainer variant="critical">{action.error}</MessageContainer>}
+        {action.error && (
+          <MessageContainer variant="critical">
+            <MessageContainer.Description>{action.error}</MessageContainer.Description>
+          </MessageContainer>
+        )}
       </Flex>
     </Modal>
   );
@@ -180,7 +188,11 @@ export function ConfirmModal({ show, title, message, confirmLabel, critical, onC
     >
       <Flex flexDirection="column" gap={12}>
         {typeof message === "string" ? <Paragraph>{message}</Paragraph> : message}
-        {action.error && <MessageContainer variant="critical">{action.error}</MessageContainer>}
+        {action.error && (
+          <MessageContainer variant="critical">
+            <MessageContainer.Description>{action.error}</MessageContainer.Description>
+          </MessageContainer>
+        )}
       </Flex>
     </Modal>
   );

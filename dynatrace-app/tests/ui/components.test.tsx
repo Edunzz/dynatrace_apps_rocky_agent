@@ -1,5 +1,7 @@
 import { AppRoot } from "@dynatrace/strato-components/core";
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import React from "react";
 import { ConfirmDeleteModal } from "../../src/components/modals";
 import { ConnectionTestResults } from "../../src/components/ConnectionTestResults";
@@ -100,5 +102,28 @@ describe("ConfirmDeleteModal", () => {
       fireEvent.click(enabled);
     });
     expect(onConfirm).toHaveBeenCalledWith("DELETE");
+  });
+
+  it("shows why the deletion failed", async () => {
+    const onConfirm = jest.fn().mockRejectedValue(new Error("Schema not found"));
+    renderUi(<ConfirmDeleteModal show title="Delete saved session" itemName="Checkout RCA" onConfirm={onConfirm} onClose={() => undefined} />);
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "DELETE" } });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Delete permanently" }));
+    });
+    expect(screen.getByText("Schema not found")).toBeTruthy();
+  });
+});
+
+// Strato's MessageContainer renders bare text as an empty box: the text has to be
+// inside MessageContainer.Title or MessageContainer.Description.
+describe("MessageContainer usage", () => {
+  const srcDir = join(__dirname, "../../src");
+  const files = (readdirSync(srcDir, { recursive: true }) as string[]).filter((f) => f.endsWith(".tsx"));
+
+  it.each(files)("%s puts its text in a subcomponent", (file) => {
+    const source = readFileSync(join(srcDir, file), "utf8");
+    const bare = [...source.matchAll(/<MessageContainer(?![.\w])[^>]*>\s*(?!<MessageContainer\.)\S[^\n]*/g)].map((m) => m[0]);
+    expect(bare).toEqual([]);
   });
 });
