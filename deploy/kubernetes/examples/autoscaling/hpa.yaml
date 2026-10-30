@@ -1,0 +1,29 @@
+# HorizontalPodAutoscaler EXAMPLE.
+#
+# WARNING: OpenCode sessions live inside one pod. With more than one replica,
+# consecutive requests for the same session can land on a different pod and
+# fail. The Dynatrace App calls the runtime from App Functions without cookies,
+# so cookie-based sticky sessions do not help. Keep maxReplicas: 1 and scale
+# vertically unless you add routing that is aware of the session ID.
+#
+# With maxReplicas: 1 this HPA only documents the target utilization; raise it
+# together with session-aware routing (and a ReadWriteMany workspace).
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: rocky-agent
+  namespace: rocky-agent
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rocky-agent
+  minReplicas: 1
+  maxReplicas: 1
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 75

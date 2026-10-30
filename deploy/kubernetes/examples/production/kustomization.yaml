@@ -1,0 +1,28 @@
+# Production overlay: set your host, Dynatrace environment and image digest.
+#   kubectl apply -k deploy/kubernetes/examples/production
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+images:
+  - name: ghcr.io/edunzz/dynatrace_apps_rocky_agent
+    newTag: "0.1.0"
+    # digest: sha256:<digest>   # prefer pinning by digest
+patches:
+  - target:
+      kind: Ingress
+      name: rocky-agent
+    patch: |-
+      - op: replace
+        path: /spec/rules/0/host
+        value: rocky-agent.example.com
+      - op: replace
+        path: /spec/tls/0/hosts/0
+        value: rocky-agent.example.com
+  - target:
+      kind: ConfigMap
+      name: rocky-agent-config
+    patch: |-
+      - op: replace
+        path: /data/DT_PLATFORM_URL
+        value: https://abc12345.apps.dynatrace.com

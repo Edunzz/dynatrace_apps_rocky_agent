@@ -1,0 +1,23 @@
+# Copy to terraform.tfvars (git-ignored) and adjust. No secret values here:
+# only Secrets Manager ARNs.
+region             = "eu-west-1"
+vpc_id             = "vpc-0123456789abcdef0"
+private_subnet_ids = ["subnet-0aaaaaaaaaaaaaaaa", "subnet-0bbbbbbbbbbbbbbbb"]
+alb_subnet_ids     = ["subnet-0aaaaaaaaaaaaaaaa", "subnet-0bbbbbbbbbbbbbbbb"]
+internal_alb       = true
+alb_ingress_cidrs  = ["10.0.0.0/8"]
+certificate_arn    = "arn:aws:acm:eu-west-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
+
+image           = "ghcr.io/edunzz/dynatrace_apps_rocky_agent:0.1.0"
+dt_platform_url = "https://abc12345.apps.dynatrace.com"
+
+dt_platform_token_secret_arn = "arn:aws:secretsmanager:eu-west-1:123456789012:secret:rocky-agent/dt-platform-token-AbCdEf"
+server_password_secret_arn   = "arn:aws:secretsmanager:eu-west-1:123456789012:secret:rocky-agent/server-password-AbCdEf"
+model_api_key_secret_arn     = "arn:aws:secretsmanager:eu-west-1:123456789012:secret:rocky-agent/anthropic-api-key-AbCdEf"
+model_api_key_env            = "ANTHROPIC_API_KEY"
+opencode_provider            = "anthropic"
+opencode_model               = "anthropic/claude-sonnet-4-5"
+
+cpu                   = 1024
+memory                = 2048
+ephemeral_storage_gib = 20

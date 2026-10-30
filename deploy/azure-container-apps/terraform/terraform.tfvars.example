@@ -1,0 +1,8 @@
+# Copy to terraform.tfvars (git-ignored). Secret values stay in Key Vault.
+subscription_id     = "00000000-0000-0000-0000-000000000000"
+resource_group_name = "rg-rocky-agent"
+key_vault_name      = "kv-rocky-agent"
+dt_platform_url     = "https://abc12345.apps.dynatrace.com"
+image               = "ghcr.io/edunzz/dynatrace_apps_rocky_agent:0.1.0"
+external_ingress    = true
+allowed_ip_ranges   = []

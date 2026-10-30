@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rocky-agent
+spec:
+  # Agent sessions are local to one pod: keep a single replica.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: rocky-agent
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: rocky-agent
+    spec:
+      serviceAccountName: rocky-agent
+      automountServiceAccountToken: false
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: rocky-agent
+          # Pin by digest in production: ghcr.io/edunzz/dynatrace_apps_rocky_agent@sha256:<digest>
+          image: ghcr.io/edunzz/dynatrace_apps_rocky_agent:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 4096
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: rocky-agent-config
+          env:
+            - name: DT_PLATFORM_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: rocky-agent-secrets
+                  key: DT_PLATFORM_TOKEN
+            - name: OPENCODE_SERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: rocky-agent-secrets
+                  key: OPENCODE_SERVER_PASSWORD
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: rocky-agent-secrets
+                  key: ANTHROPIC_API_KEY
+                  optional: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: "1"
+              memory: 2Gi
+              ephemeral-storage: 2Gi
+            limits:
+              cpu: "2"
+              memory: 4Gi
+              ephemeral-storage: 20Gi
+          startupProbe:
+            httpGet:
+              path: /rocky/v1/livez
+              port: http
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet:
+              path: /rocky/v1/livez
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /rocky/v1/livez
+              port: http
+            periodSeconds: 30
+            timeoutSeconds: 5
+            failureThreshold: 3
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+            - name: home
+              mountPath: /home/rocky
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: workspace
+          persistentVolumeClaim:
+            claimName: rocky-agent-workspace
+        - name: home
+          emptyDir:
+            sizeLimit: 2Gi
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Gi

@@ -36,10 +36,15 @@ jq -e '.workspace.status == "ready"' <<<"$status" >/dev/null && pass "workspace 
 grep -q "$PASSWORD" <<<"$status" && fail "status leaks the password" || pass "status contains no password"
 
 # Secrets are not visible to agent processes.
+# OpenCode processes are identified by argv[0] (native binary) or argv[1] (npm
+# launcher run by node); matching on the command text would also match this
+# checker, whose environment comes from `docker exec`.
 leaks="$("${COMPOSE[@]}" exec -T rocky-agent bash -c '
   found=0; checked=0
   for p in /proc/[0-9]*; do
-    tr "\0" " " < "$p/cmdline" 2>/dev/null | grep -q "opencode.*serve" || continue
+    mapfile -d "" -t argv < "$p/cmdline" 2>/dev/null || continue
+    a0="${argv[0]##*/}"; a1="${argv[1]##*/}"
+    [[ "$a0" == opencode* || ( "$a0" == node && "$a1" == opencode* ) ]] || continue
     checked=$((checked + 1))
     if tr "\0" "\n" < "$p/environ" 2>/dev/null | grep -E -q "^(DT_PLATFORM_TOKEN=|OPENCODE_SERVER_PASSWORD=ci-integration)"; then found=1; fi
   done
