@@ -11,6 +11,7 @@ import { Console } from "../app/theme";
 import { ConnectionForm } from "../components/ConnectionForm";
 import { DeploymentGuide } from "../components/DeploymentGuide";
 import { ConfirmModal } from "../components/modals";
+import { PlatformTokenGuide } from "../components/PlatformTokenGuide";
 import type { StoredConnection } from "../models/connection";
 import { connectionsApi } from "../services/connections";
 
@@ -101,6 +102,15 @@ export function WelcomePage() {
           )}
         </section>
       )}
+
+      <Surface padding={16}>
+        <section aria-labelledby="token-heading">
+          <Heading level={3} id="token-heading">
+            Dynatrace platform token
+          </Heading>
+          <PlatformTokenGuide />
+        </section>
+      </Surface>
 
       <div style={{ display: "grid", gap: 24, gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 440px), 1fr))", alignItems: "start" }}>
         <section aria-labelledby="deploy-heading">

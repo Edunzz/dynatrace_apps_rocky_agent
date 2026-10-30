@@ -34,6 +34,9 @@ crash.log
 # Bicep / ARM build output
 deploy/azure-container-apps/bicep/*.json
 
+# Codespaces setup marker
+.devcontainer/.setup-done
+
 # Runtime artifacts
 artifacts/
 sbom*.json

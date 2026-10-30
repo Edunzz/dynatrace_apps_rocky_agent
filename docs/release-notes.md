@@ -1,5 +1,14 @@
 # Release notes
 
+## Unreleased
+
+* Platform token guide in the app and the docs: `dt0s16.` prefix, how to create it
+  for a service user, scope profiles (recommended `readwrite-mine`, read-only, RCA
+  minimum) and a separate app deployment token.
+* New first deployment option: everything local with Docker Compose + `dt-app dev`.
+* GitHub Codespaces dev container that asks for the parameters, deploys the app
+  with `DT_APP_PLATFORM_TOKEN` and can start the runtime.
+
 ## 0.1.0 (unreleased)
 
 First release of Rocky Agent.

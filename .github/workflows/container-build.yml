@@ -7,6 +7,7 @@ on:
       - "deploy/local/**"
       - "dynatrace-app/src/functions/**"
       - "dynatrace-app/tests/integration/**"
+      - ".devcontainer/**"
       - ".github/workflows/container-build.yml"
   push:
     branches: [main]
@@ -15,6 +16,7 @@ on:
       - "deploy/local/**"
       - "dynatrace-app/src/functions/**"
       - "dynatrace-app/tests/integration/**"
+      - ".devcontainer/**"
       - ".github/workflows/container-build.yml"
   workflow_dispatch:
 
@@ -44,7 +46,7 @@ jobs:
       - name: Unit, script and draw.io tests
         run: npm test
       - name: ShellCheck
-        run: shellcheck --severity=warning entrypoint.sh healthcheck.sh scripts/*.sh tests/container/*.sh
+        run: shellcheck --severity=warning entrypoint.sh healthcheck.sh scripts/*.sh tests/container/*.sh ../.devcontainer/*.sh
 
   dockerfile-lint:
     name: Dockerfile lint

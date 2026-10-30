@@ -42,7 +42,10 @@ approvals as audit events and exposes `/rocky/v1/status` and
 
 ## Quick start
 
-Local evaluation with Docker Compose (development mode, loopback only):
+You need a Dynatrace **platform token** (`dt0s16.…`) for the runtime first:
+see [Platform token setup](#platform-token-setup).
+
+### Option 1: everything on your computer (Docker Compose + `dt-app dev`)
 
 ```bash
 git clone https://github.com/Edunzz/dynatrace_apps_rocky_agent.git
@@ -50,11 +53,28 @@ cd dynatrace_apps_rocky_agent
 cp .env.example .env            # set DT_PLATFORM_URL, DT_PLATFORM_TOKEN and a model provider
 docker compose up --build -d
 curl -fsS http://127.0.0.1:4096/rocky/v1/livez     # {"status":"ok"}
+
+cd dynatrace-app && npm ci
+DT_APP_ENVIRONMENT_URL=https://<environment-id>.apps.dynatrace.com npm start
 ```
+
+In the app, connect to `http://localhost:4096`. This works because `dt-app dev`
+runs the app functions **on your computer**. The app installed in your
+Dynatrace environment runs its functions in Dynatrace and **cannot** reach your
+`localhost`. Details: [docs/deployment/local.md](docs/deployment/local.md).
 
 With `NODE_ENV=development` and no `OPENCODE_SERVER_PASSWORD`, the documented
 development default `edunzzxgundam79` is used and a warning is printed.
 **Production startup rejects it.**
+
+### Option 2: GitHub Codespaces
+
+**Code → Codespaces → New with options**, enter your environment URL and
+tokens, and the codespace deploys the app to your environment (and can start
+the runtime). Or create it normally and run `bash .devcontainer/setup.sh`.
+Details: [docs/deployment/codespaces.md](docs/deployment/codespaces.md).
+
+### Option 3: a server or the cloud
 
 Running the published image directly (secrets come from a file, not from shell history):
 
@@ -68,7 +88,8 @@ docker run --rm --name rocky-agent -p 127.0.0.1:4096:4096 --env-file rocky.env \
 ```
 
 Then put an HTTPS reverse proxy in front of it, deploy the app
-([below](#dynatrace-app-installation)) and run the connection test.
+([below](#dynatrace-app-installation)) and run the connection test. ECS, Azure
+Container Apps and Kubernetes are covered in [Deployment targets](#deployment-targets).
 
 ## Security warnings
 
@@ -115,7 +136,9 @@ Variables whose names contain `TOKEN`, `PASSWORD`, `SECRET`, `API_KEY`,
 
 | Target | Templates | Guide |
 |---|---|---|
-| Docker / Compose | [`docker-compose.yml`](docker-compose.yml), [`deploy/local/`](deploy/local/) | [docs/deployment/docker.md](docs/deployment/docker.md) |
+| Local: Docker Compose + `dt-app dev` | [`docker-compose.yml`](docker-compose.yml) | [docs/deployment/local.md](docs/deployment/local.md) |
+| GitHub Codespaces | [`.devcontainer/`](.devcontainer/) | [docs/deployment/codespaces.md](docs/deployment/codespaces.md) |
+| Docker on a server | [`docker-compose.yml`](docker-compose.yml), [`deploy/local/`](deploy/local/) | [docs/deployment/docker.md](docs/deployment/docker.md) |
 | Amazon ECS (Fargate) | [Terraform](deploy/aws-ecs/terraform/), [CloudFormation](deploy/aws-ecs/cloudformation/rocky-agent.yaml) | [docs/deployment/aws-ecs.md](docs/deployment/aws-ecs.md) |
 | Azure Container Apps | [Bicep](deploy/azure-container-apps/bicep/main.bicep), [Terraform](deploy/azure-container-apps/terraform/) | [docs/deployment/azure-container-apps.md](docs/deployment/azure-container-apps.md) |
 | Kubernetes | [Kustomize](deploy/kubernetes/) | [docs/deployment/kubernetes.md](docs/deployment/kubernetes.md) |
@@ -153,7 +176,10 @@ docker compose -f deploy/local/docker-compose.ci.yml down -v
    ```bash
    cd dynatrace-app && npm ci
    DT_APP_ENVIRONMENT_URL=https://<environment-id>.apps.dynatrace.com npm run deploy
+   # Without a browser login: also set DT_APP_PLATFORM_TOKEN (app-engine:apps:install, app-engine:apps:run)
    ```
+
+   Or let a [Codespace](docs/deployment/codespaces.md) do it.
 
 3. Give users the app's scopes and the IAM policy below.
 4. Open **Rocky Agent**, deploy or pick a runtime, run **Test connection** and save.
@@ -174,12 +200,31 @@ Details: [docs/dynatrace-setup.md](docs/dynatrace-setup.md).
 
 ## Platform token setup
 
-Create a service user, give it only the permissions the agent should have, and
-generate a platform token for it. Recommended read scopes and the optional
-write scopes for publishing notebooks are listed in
-[docs/dynatrace-setup.md](docs/dynatrace-setup.md). The token is written to
-dtctl's config file (mode 0600) at startup and removed from the environment
-before OpenCode starts. `DTCTL_SAFETY_LEVEL` adds a client-side guard on top.
+`DT_PLATFORM_TOKEN` is a Dynatrace **platform token**: it starts with
+`dt0s16.` (classic `dt0c01.` API tokens do not work). Effective access is the
+intersection of its scopes and the permissions of the user it belongs to, so
+create it for a **dedicated service user**:
+
+1. Create the service user and bind its IAM policies.
+2. Open <https://myaccount.dynatrace.com/platformTokens> → **Platform token**,
+   choose the environment and generate it **for the service user**.
+3. Select the scopes of a profile and store the token as `DT_PLATFORM_TOKEN`.
+
+| Profile | `DTCTL_SAFETY_LEVEL` | Scopes |
+|---|---|---|
+| **Recommended** (default): analysis + your own notebooks, dashboards and workflows after confirmation | `readwrite-mine` | dtctl's `readwrite-mine` list + `storage:user.events:read`, `storage:user.sessions:read` (53) |
+| **Read-only**: analysis only; the RCA skill cannot publish its notebook | `readonly` | dtctl's `readonly` list (39) |
+| **RCA minimum** | — | `storage:buckets:read`, `storage:events:read`, `storage:logs:read`, `storage:metrics:read`, `storage:spans:read`, `storage:entities:read`, `storage:smartscape:read`, `document:documents:read`, `document:documents:write` |
+
+The full lists are in [docs/dynatrace-setup.md](docs/dynatrace-setup.md#1-runtime-platform-token-dt_platform_token)
+and in the app under **Dynatrace platform token** (with copy buttons). The
+token is written to dtctl's config file (mode 0600) at startup and removed from
+the environment before OpenCode starts; `DTCTL_SAFETY_LEVEL` adds a client-side
+guard on top.
+
+Deploying the app without a browser login (Codespaces, CI) uses a **separate**
+platform token, `DT_APP_PLATFORM_TOKEN`, with `app-engine:apps:install` and
+`app-engine:apps:run`.
 
 ## Model provider setup
 
@@ -284,6 +329,9 @@ See the full list in [docs/implementation-plan.md](docs/implementation-plan.md#5
 * One replica per runtime; sessions are not shared between replicas.
 * Deployment templates are validated statically in CI; they have not been
   applied to live AWS or Azure accounts by this project.
+* The installed app cannot reach a runtime on your `localhost`; use `dt-app dev`,
+  a public HTTPS endpoint or EdgeConnect.
+* The Codespaces setup has been tested in dry-run mode only.
 
 ## License
 

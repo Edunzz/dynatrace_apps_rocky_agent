@@ -158,6 +158,11 @@ and `Files-SHA256-Hashes.txt`.
 * L9. The ECS, Azure Container Apps and Kubernetes templates are validated
   statically (Terraform, cfn-lint, Bicep, kubeconform) but were not applied to
   live cloud accounts.
+* L10. The Codespaces setup (`.devcontainer/`) is tested in dry-run mode only;
+  a full run in a real codespace against a real environment is pending.
+  The local option (Docker Compose + `dt-app dev`) was verified by running the
+  built app functions in the local Dynatrace JavaScript runtime against a local
+  runtime; `dt-app dev` itself was not started because it needs a browser sign-in.
 
 ## 6. Status and verification
 
