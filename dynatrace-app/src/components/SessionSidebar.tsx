@@ -2,7 +2,7 @@ import { Button } from "@dynatrace/strato-components/buttons";
 import { Chip, MessageContainer, ProgressCircle } from "@dynatrace/strato-components/content";
 import { SearchInput } from "@dynatrace/strato-components/forms";
 import { Heading } from "@dynatrace/strato-components/typography";
-import { DeleteIcon, EditIcon } from "@dynatrace/strato-icons";
+import { DeleteIcon, EditIcon, PlusIcon } from "@dynatrace/strato-icons";
 import React, { useMemo, useState } from "react";
 import { useMatch, useNavigate } from "react-router-dom";
 import { useConnection } from "../app/ConnectionContext";
@@ -38,6 +38,13 @@ export function SessionSidebar() {
 
   return (
     <nav aria-label="Sessions" className="rk-side">
+      <Button variant="emphasized" color="primary" width="full" disabled={!connectionRef} onClick={() => navigate("/agent")}>
+        <Button.Prefix>
+          <PlusIcon />
+        </Button.Prefix>
+        New session
+      </Button>
+
       <section aria-labelledby="saved-heading">
         <div className="rk-side__head">
           <Heading level={6} id="saved-heading">

@@ -1,5 +1,11 @@
 # Release notes
 
+## App 0.2.5
+
+* **New session** button at the top of the sidebar and in the session header:
+  it opens the start page with the suggested prompts (RCA, logs, alerts,
+  business data) while the current session keeps running in the runtime.
+
 ## App 0.2.4
 
 Visual redesign; behavior is unchanged and the runtime stays at 0.2.2.

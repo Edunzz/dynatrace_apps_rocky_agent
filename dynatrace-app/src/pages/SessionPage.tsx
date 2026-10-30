@@ -2,7 +2,7 @@ import { Button } from "@dynatrace/strato-components/buttons";
 import { Chip, MessageContainer, ProgressCircle } from "@dynatrace/strato-components/content";
 import { FormField, Label, TextArea, TextInput } from "@dynatrace/strato-components/forms";
 import { showToast } from "@dynatrace/strato-components/notifications";
-import { DeleteIcon, DocumentIcon, DocumentStackIcon, EditIcon, FormatListNumberedIcon, SaveIcon, StopIcon } from "@dynatrace/strato-icons";
+import { DeleteIcon, DocumentIcon, DocumentStackIcon, EditIcon, FormatListNumberedIcon, PlusIcon, SaveIcon, StopIcon } from "@dynatrace/strato-icons";
 import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useConnection } from "../app/ConnectionContext";
@@ -128,6 +128,12 @@ export function SessionPage() {
           </Button>
           <Button onClick={() => setModal("policy")} disabled={!api}>
             Policy
+          </Button>
+          <Button onClick={() => navigate("/agent")}>
+            <Button.Prefix>
+              <PlusIcon />
+            </Button.Prefix>
+            New session
           </Button>
           <span className="rk-spacer" />
           <Button color="critical" disabled={!chat.busy} onClick={() => void chat.stopGeneration().catch((e: unknown) => setActionError(errorMessage(e)))}>
