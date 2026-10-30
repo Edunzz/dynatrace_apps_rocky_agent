@@ -17,8 +17,9 @@ regexes = [
   '''e2e-password-0123456789''',
   '''a-unique-password-123''',
 ]
+# Test fixtures contain synthetic credentials on purpose (they verify redaction).
 paths = [
-  '''agent-runtime/tests/.*\.test\.mjs''',
+  '''agent-runtime/tests/.*''',
   '''dynatrace-app/tests/.*''',
   '''dynatrace-app/src/.*\.test\.tsx?''',
 ]

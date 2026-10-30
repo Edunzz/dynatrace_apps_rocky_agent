@@ -80,9 +80,12 @@ RUN apt-get update \
     fi \
  && rm -rf /var/lib/apt/lists/*
 
-# OpenCode is the only coding agent runtime. Install scripts are not executed;
-# the npm launcher resolves the platform binary from optional dependencies.
+# OpenCode is the only coding agent runtime. Dependency install scripts are
+# disabled; only the pinned opencode-ai postinstall runs, explicitly. It selects
+# the platform binary (x64 AVX2 or baseline, arm64) and copies it into place.
+# The x64 variant is chosen from the build machine's CPU (see docs/operations.md).
 RUN npm install --global --ignore-scripts --no-audit --no-fund "opencode-ai@${OPENCODE_VERSION}" \
+ && (cd "$(npm root --global)/opencode-ai" && node postinstall.mjs) \
  && npm cache clean --force \
  && opencode --version
 
@@ -105,6 +108,8 @@ RUN useradd --uid 10001 --user-group --create-home --home-dir /home/rocky --shel
  && dtctl version \
  && if [ "$INSTALL_DRAWIO_DESKTOP" = "true" ]; then test -x /usr/local/bin/drawio; fi
 
+# DTCTL_TOKEN_STORAGE selects file-based storage; it holds no secret value.
+# hadolint ignore=DL3064
 ENV NODE_ENV=production \
     HOME=/home/rocky \
     WORKSPACE_PATH=/workspace \
