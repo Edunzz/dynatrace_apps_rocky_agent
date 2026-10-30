@@ -8,6 +8,11 @@ on:
       - "dynatrace-app/src/functions/**"
       - "dynatrace-app/tests/integration/**"
       - ".devcontainer/**"
+      - "dynatrace-app/scripts/**"
+      - "docker-compose.yml"
+      - ".env.example"
+      - "package.json"
+      - "dynatrace-app/package.json"
       - ".github/workflows/container-build.yml"
   push:
     branches: [main]
@@ -17,6 +22,11 @@ on:
       - "dynatrace-app/src/functions/**"
       - "dynatrace-app/tests/integration/**"
       - ".devcontainer/**"
+      - "dynatrace-app/scripts/**"
+      - "docker-compose.yml"
+      - ".env.example"
+      - "package.json"
+      - "dynatrace-app/package.json"
       - ".github/workflows/container-build.yml"
   workflow_dispatch:
 
@@ -46,7 +56,7 @@ jobs:
       - name: Unit, script and draw.io tests
         run: npm test
       - name: ShellCheck
-        run: shellcheck --severity=warning entrypoint.sh healthcheck.sh scripts/*.sh tests/container/*.sh ../.devcontainer/*.sh
+        run: shellcheck --severity=warning entrypoint.sh healthcheck.sh scripts/*.sh tests/container/*.sh ../.devcontainer/*.sh ../dynatrace-app/scripts/*.sh
 
   dockerfile-lint:
     name: Dockerfile lint
@@ -89,6 +99,11 @@ jobs:
           cache-to: type=gha,mode=max
       - name: Image checks
         run: bash agent-runtime/tests/container/image-checks.sh rocky-agent:ci
+      - name: Validate docker-compose.yml (runtime and tunnel profile)
+        run: |
+          cp .env.example .env
+          docker compose --profile tunnel config --quiet
+          rm .env
       - name: Start integration stack (mock model provider, degraded Dynatrace)
         run: docker compose -f deploy/local/docker-compose.ci.yml up -d
       - name: Runtime checks

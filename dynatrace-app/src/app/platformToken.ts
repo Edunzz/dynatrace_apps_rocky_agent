@@ -128,8 +128,18 @@ export const RCA_REQUIRED_SCOPES = [
   "document:documents:write",
 ] as const;
 
+// Small set for getting started: what the RCA skill requires plus what its
+// prerequisite check recommends. Writes are limited to documents (notebooks).
+export const STARTER_SCOPES = [
+  ...RCA_REQUIRED_SCOPES,
+  "storage:bizevents:read",
+  "storage:user.events:read",
+  "storage:user.sessions:read",
+  "storage:system:read",
+] as const;
+
 // Separate token used only to deploy the app (dt-app deploy, Codespaces).
-export const APP_DEPLOY_SCOPES = ["app-engine:apps:install", "app-engine:apps:run"] as const;
+export const APP_DEPLOY_SCOPES = ["app-engine:apps:install", "app-engine:apps:run", "app-engine:apps:delete"] as const;
 
 export interface TokenProfile {
   id: string;
@@ -140,6 +150,14 @@ export interface TokenProfile {
 }
 
 export const TOKEN_PROFILES: TokenProfile[] = [
+  {
+    id: "starter",
+    title: "Starter",
+    safetyLevel: "readwrite-mine",
+    description:
+      "Quickest to create: reads logs, metrics, traces, events, entities and business data, and lets the agent publish its own notebooks (for example the RCA) after you confirm.",
+    scopes: STARTER_SCOPES,
+  },
   {
     id: "recommended",
     title: "Recommended (default)",

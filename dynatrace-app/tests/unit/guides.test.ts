@@ -4,6 +4,7 @@ import {
   RCA_REQUIRED_SCOPES,
   READONLY_SCOPES,
   RECOMMENDED_SCOPES,
+  STARTER_SCOPES,
   TOKEN_PROFILES,
 } from "../../src/app/platformToken";
 
@@ -12,10 +13,19 @@ describe("deployment guides", () => {
     expect(DEPLOYMENT_GUIDES.map((g) => g.id)).toEqual(["local", "codespaces", "docker", "ecs", "aca", "kubernetes", "existing"]);
   });
 
-  it("explains why the local option needs dt-app dev", () => {
+  it("explains why the local option needs a tunnel or dt-app dev", () => {
     const local = DEPLOYMENT_GUIDES[0];
+    expect(local.summary).toMatch(/tunnel/);
     expect(local.summary).toMatch(/dt-app dev/);
     expect(local.summary).toMatch(/cannot reach your localhost/);
+    expect(JSON.stringify(local.sections)).toMatch(/\*\.trycloudflare\.com/);
+  });
+
+  it("installs the app from Codespaces with the deployment token", () => {
+    const codespaces = DEPLOYMENT_GUIDES[1];
+    expect(codespaces.sections.find((s) => s.title === "Deployment commands")?.code?.content).toBe("npm run deploy:token");
+    expect(JSON.stringify(codespaces)).toMatch(/app-engine:apps:delete/);
+    expect(JSON.stringify(codespaces)).not.toMatch(/setup\.sh|DT_ENVIRONMENT_URL/);
   });
 
   it("covers every required section in every guide", () => {
@@ -47,16 +57,22 @@ describe("platform token scopes", () => {
     expect(RECOMMENDED_SCOPES).toEqual(expect.arrayContaining(["storage:user.events:read", "storage:user.sessions:read"]));
   });
 
+  it("keeps the starter profile small and sufficient for the RCA skill", () => {
+    expect(STARTER_SCOPES).toHaveLength(13);
+    for (const scope of RCA_REQUIRED_SCOPES) expect(STARTER_SCOPES).toContain(scope);
+    expect(STARTER_SCOPES.filter((s) => s.endsWith(":write"))).toEqual(["document:documents:write"]);
+  });
+
   it("keeps the read-only profile free of write scopes", () => {
     expect(READONLY_SCOPES.filter((s) => /:(write|delete|install|admin)$/.test(s))).toEqual([]);
   });
 
   it("has no duplicate scopes and matches the dtctl safety levels", () => {
     for (const profile of TOKEN_PROFILES) expect(new Set(profile.scopes).size).toBe(profile.scopes.length);
-    expect(TOKEN_PROFILES.map((p) => p.safetyLevel)).toEqual(["readwrite-mine", "readonly"]);
+    expect(TOKEN_PROFILES.map((p) => [p.id, p.safetyLevel])).toEqual([["starter", "readwrite-mine"], ["recommended", "readwrite-mine"], ["readonly", "readonly"]]);
   });
 
   it("deploys the app with a separate, minimal token", () => {
-    expect([...APP_DEPLOY_SCOPES]).toEqual(["app-engine:apps:install", "app-engine:apps:run"]);
+    expect([...APP_DEPLOY_SCOPES]).toEqual(["app-engine:apps:install", "app-engine:apps:run", "app-engine:apps:delete"]);
   });
 });

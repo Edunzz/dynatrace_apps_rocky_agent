@@ -26,6 +26,9 @@ const HOP_BY_HOP = new Set([
   "www-authenticate",
 ]);
 
+// Headers added by reverse proxies and tunnels (cloudflared, ALB, ingress).
+const PROXY_HEADERS = ["x-forwarded-for", "forwarded", "cf-connecting-ip", "x-real-ip"];
+
 const SECURITY_HEADERS = {
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
@@ -306,6 +309,16 @@ export function createGateway({
         );
       }
       limiter.recordSuccess(key);
+
+      // The public development password is only acceptable for direct local
+      // connections, never through a proxy or tunnel.
+      if (config.usesDefaultPassword && PROXY_HEADERS.some((h) => req.headers[h] !== undefined)) {
+        throw new GatewayError(
+          403,
+          "default_password_remote",
+          "The development default password is not accepted through a proxy or tunnel. Set OPENCODE_SERVER_PASSWORD (16+ characters) and NODE_ENV=production.",
+        );
+      }
 
       if (matched) {
         const { route, params } = matched;

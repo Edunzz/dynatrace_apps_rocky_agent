@@ -207,6 +207,24 @@ describe("rocky gateway failure limiter", () => {
   });
 });
 
+describe("rocky gateway with the development default password", () => {
+  it("accepts direct local requests but rejects requests through a proxy or tunnel", async () => {
+    const gw = await startGateway({ usesDefaultPassword: true });
+    try {
+      assert.equal((await gw.request("GET", "/global/health")).status, 200);
+      for (const header of ["x-forwarded-for", "cf-connecting-ip", "forwarded", "x-real-ip"]) {
+        const res = await gw.request("GET", "/global/health", { headers: { [header]: "203.0.113.7" } });
+        assert.equal(res.status, 403, header);
+        assert.equal(res.json.error, "default_password_remote");
+      }
+      const live = await gw.request("GET", "/rocky/v1/livez", { authenticated: false, headers: { "cf-connecting-ip": "203.0.113.7" } });
+      assert.equal(live.status, 200, "liveness stays available");
+    } finally {
+      await gw.stop();
+    }
+  });
+});
+
 describe("rocky gateway console mode", () => {
   it("serves the console but still blocks terminal access", async () => {
     const gw = await startGateway({ consoleEnabled: true });

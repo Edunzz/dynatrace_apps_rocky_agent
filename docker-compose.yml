@@ -1,10 +1,11 @@
-# Local development: builds and runs the Rocky Agent runtime on 127.0.0.1:4096.
+# Rocky Agent runtime on your computer.
 #
-#   cp .env.example .env   # fill in DT_PLATFORM_TOKEN and a model provider
-#   docker compose up --build
+#   cp .env.example .env                         # fill in the values (see README "Getting started")
+#   docker compose --profile tunnel up -d --build
+#   docker compose logs tunnel                   # copy the https://<random>.trycloudflare.com URL
 #
-# The port is bound to loopback only. Put an HTTPS reverse proxy in front of
-# the runtime before anything else can reach it (see docs/deployment/docker.md).
+# Without "--profile tunnel" the runtime is reachable only on 127.0.0.1:4096,
+# which works with `dt-app dev` but not with the app installed in Dynatrace.
 
 name: rocky-agent
 
@@ -17,7 +18,8 @@ services:
     image: rocky-agent:local
     env_file: .env
     environment:
-      NODE_ENV: ${NODE_ENV:-development}
+      # Production rules by default: a unique password of 16+ characters is required.
+      NODE_ENV: ${NODE_ENV:-production}
     ports:
       - "127.0.0.1:4096:4096"
     volumes:
@@ -26,6 +28,24 @@ services:
     tmpfs:
       - /tmp:size=512m,mode=1777
       - /home/rocky:size=1g,uid=10001,gid=10001,mode=0700
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+  # Optional public HTTPS URL so the app installed in Dynatrace can reach this
+  # runtime. Cloudflare quick tunnel: no account needed, for testing only. The
+  # URL changes on every restart. Starts only after the runtime is healthy, so
+  # a runtime that rejected its password is never exposed.
+  tunnel:
+    profiles: ["tunnel"]
+    image: cloudflare/cloudflared:2026.10.6@sha256:004d843fa5fdc3103983fd580ee19fab4a8fa98add31f87249c1659e848c98e0
+    command: ["tunnel", "--no-autoupdate", "--protocol", "http2", "--url", "http://rocky-agent:4096"]
+    depends_on:
+      rocky-agent:
+        condition: service_healthy
+    read_only: true
     security_opt:
       - no-new-privileges:true
     cap_drop:

@@ -1,0 +1,9 @@
+{
+  "name": "rocky-agent",
+  "private": true,
+  "description": "Shortcuts for the Rocky Agent repository. The app lives in dynatrace-app/, the runtime in agent-runtime/.",
+  "license": "MIT",
+  "scripts": {
+    "deploy:token": "npm --prefix dynatrace-app run deploy:token --"
+  }
+}

@@ -1,63 +1,29 @@
-// Rocky Agent development container for GitHub Codespaces.
-//
-// Create the codespace with "New with options" to enter the parameters below
-// (they are offered as Codespaces secrets), or answer the prompts of
-// `bash .devcontainer/setup.sh` in the terminal. See docs/deployment/codespaces.md.
 {
+  // GitHub Codespaces / Dev Containers: everything needed to build and deploy the Rocky Agent app, with no local
+  // setup. After the container is created, run `npm run deploy:token` (see README.md): it asks for the environment
+  // URL and the platform token, offering the secrets below as defaults.
   "name": "Rocky Agent",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:5.2.5-24-bookworm",
-  "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:4.1.3": {},
-    "ghcr.io/devcontainers/features/github-cli:1.1.3": {}
-  },
-  "hostRequirements": {
-    "cpus": 4,
-    "memory": "8gb",
-    "storage": "32gb"
-  },
+  "postCreateCommand": "npm ci --prefix dynatrace-app --no-audit --no-fund",
+  "postAttachCommand": "bash .devcontainer/welcome.sh",
+  // Codespaces asks for these values on the creation page only while you don't have them saved yet; afterwards it
+  // reuses your saved values. They are passed to the codespace as environment variables.
   "secrets": {
-    "DT_ENVIRONMENT_URL": {
-      "description": "Dynatrace environment URL, for example https://abc12345.apps.dynatrace.com",
-      "documentationUrl": "https://github.com/Edunzz/dynatrace_apps_rocky_agent/blob/main/docs/deployment/codespaces.md"
+    "DT_APP_ENVIRONMENT_URL": {
+      "description": "URL of the Dynatrace environment to deploy to, e.g. https://abc12345.apps.dynatrace.com",
+      "documentationUrl": "https://github.com/Edunzz/dynatrace_apps_rocky_agent#getting-started"
     },
     "DT_APP_PLATFORM_TOKEN": {
-      "description": "Platform token (dt0s16.…) with app-engine:apps:install and app-engine:apps:run. Used only to deploy the app.",
-      "documentationUrl": "https://github.com/Edunzz/dynatrace_apps_rocky_agent/blob/main/docs/dynatrace-setup.md"
-    },
-    "DT_PLATFORM_TOKEN": {
-      "description": "Optional, to start the runtime here: platform token for dtctl (see the recommended scopes).",
-      "documentationUrl": "https://github.com/Edunzz/dynatrace_apps_rocky_agent/blob/main/docs/dynatrace-setup.md"
-    },
-    "OPENCODE_SERVER_PASSWORD": {
-      "description": "Optional: runtime password (16+ characters). Generated when empty."
-    },
-    "OPENCODE_MODEL": {
-      "description": "Optional: model as provider/model, for example anthropic/claude-sonnet-4-5. Empty uses OpenCode's default."
-    },
-    "ANTHROPIC_API_KEY": {
-      "description": "Optional: Anthropic key when OPENCODE_MODEL starts with anthropic/."
-    },
-    "OPENAI_API_KEY": {
-      "description": "Optional: OpenAI key when OPENCODE_MODEL starts with openai/."
-    },
-    "OPENCODE_API_KEY": {
-      "description": "Optional: OpenCode Zen key (free models work without it)."
+      "description": "Dynatrace platform token with the scopes app-engine:apps:install, app-engine:apps:run and app-engine:apps:delete",
+      "documentationUrl": "https://docs.dynatrace.com/docs/manage/identity-access-management/access-tokens-and-oauth-clients/platform-tokens"
     }
   },
-  "forwardPorts": [4096],
-  "portsAttributes": {
-    "4096": {
-      "label": "Rocky runtime",
-      "onAutoForward": "silent"
-    }
-  },
-  "postCreateCommand": "bash .devcontainer/post-create.sh",
   "customizations": {
     "vscode": {
-      "extensions": ["dbaeumer.vscode-eslint"]
+      "extensions": ["dynatrace.dynatrace-apps", "dbaeumer.vscode-eslint"]
     },
     "codespaces": {
-      "openFiles": ["docs/deployment/codespaces.md"]
+      "openFiles": ["README.md"]
     }
   }
 }

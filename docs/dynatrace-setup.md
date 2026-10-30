@@ -19,7 +19,7 @@ the agent may do; the scopes then narrow it further.
 2. Open **My platform tokens**: <https://myaccount.dynatrace.com/platformTokens>.
 3. Select **Platform token**, enter a name, an expiration date, the account and
    the environment, and choose to generate it **for the service user**.
-4. Select the scopes of one profile below and select **Generate**.
+4. Select the scopes of one profile below (**Starter** is the quickest) and select **Generate**.
 5. Copy the token (it is shown only once) into your secret manager as
    `DT_PLATFORM_TOKEN` and set `DTCTL_SAFETY_LEVEL` to the profile's level.
 
@@ -27,7 +27,30 @@ References: [Platform tokens](https://docs.dynatrace.com/docs/manage/identity-ac
 [dtctl scopes per safety level](https://github.com/dynatrace-oss/dtctl/blob/v0.45.0/docs/TOKEN_SCOPES.md).
 The app shows the same lists, with copy buttons, under **Dynatrace platform token**.
 
-### Profile A: recommended (default, `DTCTL_SAFETY_LEVEL=readwrite-mine`)
+### Starter (getting started, `DTCTL_SAFETY_LEVEL=readwrite-mine`)
+
+The quickest token to create (13 scopes): reads logs, metrics, traces,
+events, entities and business data, and lets the agent publish its own
+notebooks (for example the RCA) after you confirm. It is what the RCA skill
+requires plus what its prerequisite check recommends:
+
+```text
+storage:buckets:read
+storage:events:read
+storage:logs:read
+storage:metrics:read
+storage:spans:read
+storage:entities:read
+storage:smartscape:read
+document:documents:read
+document:documents:write
+storage:bizevents:read
+storage:user.events:read
+storage:user.sessions:read
+storage:system:read
+```
+
+### Recommended (full, `DTCTL_SAFETY_LEVEL=readwrite-mine`)
 
 Investigation plus creating your **own** notebooks, dashboards and workflows
 after you confirm (for example the RCA notebook). It is dtctl's
@@ -90,7 +113,7 @@ storage:user.events:read
 storage:user.sessions:read
 ```
 
-### Profile B: read-only (`DTCTL_SAFETY_LEVEL=readonly`)
+### Read-only (`DTCTL_SAFETY_LEVEL=readonly`)
 
 Investigation only: the agent cannot publish anything, so the RCA skill can
 analyze but cannot publish its notebook. dtctl's `readonly` list (39 scopes):
@@ -140,7 +163,7 @@ environment-api:dashboard-3rdgen-migration:execute
 ### Minimum for the RCA skill
 
 The RCA skill's prerequisite check (`check_prereqs.py`, R3) fails without
-these 9 scopes; both profiles above include them:
+these 9 scopes; every profile above includes them:
 
 ```text
 storage:buckets:read
@@ -163,14 +186,17 @@ At startup the runtime runs `dtctl auth whoami` and a harmless
 ## 2. App deployment token (`DT_APP_PLATFORM_TOKEN`)
 
 A **separate** platform token used only to deploy the app without a browser
-login (`dt-app deploy`, the Codespace setup). Scopes:
+login (`npm run deploy:token`, Codespaces, CI). Scopes:
 
 ```text
 app-engine:apps:install
 app-engine:apps:run
+app-engine:apps:delete
 ```
 
-Its user also needs IAM permission to install apps. Do not reuse the runtime token.
+Its user also needs IAM permission to install apps. Do not reuse the runtime
+token. The same token works for other Edunzz Dynatrace apps that use
+`npm run deploy:token`.
 
 ## 3. Outbound connections for App Functions
 

@@ -1,72 +1,140 @@
-# Run everything locally (Docker Compose + `dt-app dev`)
+# Run the runtime on your computer (Docker Compose)
 
-The fastest way to try Rocky Agent: the runtime runs on your computer with
-Docker Compose, and the Dynatrace App runs on your computer with `dt-app dev`.
+The runtime runs on your computer with Docker Compose. There are two ways to
+connect the Dynatrace App to it:
 
-## Why this works (and when it does not)
+| Option | Where the app runs | How it reaches the runtime | Status |
+|---|---|---|---|
+| **A. Installed app + tunnel** (README *Getting started*) | Installed in your Dynatrace environment | Public HTTPS address from a Cloudflare quick tunnel | Not run end to end yet |
+| **B. `dt-app dev`** | On your computer | `http://localhost:4096` | Verified |
+
+## Why the installed app needs a tunnel
 
 | Where the app runs | Where its functions run | Can it use `http://localhost:4096`? |
 |---|---|---|
 | `dt-app dev` on your computer | **Your computer** (local Dynatrace JavaScript runtime) | **Yes** |
 | App installed in your Dynatrace environment | Dynatrace AppEngine (cloud) | **No**: `localhost` is the Dynatrace sandbox, not your computer |
 
-`dt-app dev` executes the app functions with the local Dynatrace JavaScript
-runtime (`@dynatrace/js-runtime`). Verified: the built `connection-test` and
-`runtime-proxy` functions, run in that runtime, passed every connection-test
-step against a runtime at `http://localhost:4096` and created a session, sent
-a prompt, received the reply and deleted the session.
-
-To use the **installed** app with a runtime on your computer, the runtime needs
-a public HTTPS URL that Dynatrace can reach (a tunnel you trust, or Dynatrace
-EdgeConnect), plus an entry in **Settings → General → External requests**. For
-anything beyond local testing, use [Codespaces](codespaces.md) or a cloud option.
+The app talks to the runtime from its App Functions, never from the browser.
+An installed app's functions run in Dynatrace, so they need an HTTPS address
+that Dynatrace can reach and that is allowed in **Settings → General →
+External requests**.
 
 ## Prerequisites
 
 * Docker Desktop or Docker Engine with Compose
-* Node.js 20+ and Git
+* Git
 * A Dynatrace SaaS environment and a runtime platform token
   ([scopes](../dynatrace-setup.md#1-runtime-platform-token-dt_platform_token))
 * A model provider key, or OpenCode Zen free models
+* Option B only: Node.js 20+
 
-## Steps
+## Configure the runtime
 
 ```bash
 git clone https://github.com/Edunzz/dynatrace_apps_rocky_agent.git
 cd dynatrace_apps_rocky_agent
-
-# 1. Runtime
-cp .env.example .env            # set DT_PLATFORM_URL, DT_PLATFORM_TOKEN and a model provider
-docker compose up --build -d    # first build takes several minutes
-curl -fsS http://127.0.0.1:4096/rocky/v1/livez   # {"status":"ok"}
-
-# 2. App (opens your browser and asks you to sign in to Dynatrace)
-cd dynatrace-app
-npm ci
-DT_APP_ENVIRONMENT_URL=https://<environment-id>.apps.dynatrace.com npm start
+cp .env.example .env          # Windows (PowerShell): copy .env.example .env
 ```
 
-In the app:
+Fill in `DT_PLATFORM_URL`, `DT_PLATFORM_TOKEN`, `OPENCODE_SERVER_PASSWORD`
+(16+ characters) and the model provider key. Compose runs the runtime with
+production rules by default (`NODE_ENV=production`), so it refuses to start
+with a short password or the development default.
 
-1. **Connect your Rocky Agent runtime** → **New runtime connection**.
-2. Runtime URL `http://localhost:4096`, username `opencode`, and the password
-   from `.env`. With `NODE_ENV=development` and an empty
-   `OPENCODE_SERVER_PASSWORD`, the documented development default
-   `edunzzxgundam79` is used.
-3. **Test connection** → **Save connection** → **Let’s Rock**.
+## Option A: installed app + tunnel
 
-Plain HTTP is accepted only for `localhost`/`127.0.0.1`, and the connection
-test reports it as a warning.
+1. Install the app: [from Codespaces](codespaces.md) or
+   `npm run deploy:token` on your computer.
+2. Start the runtime and the tunnel:
 
-## Notes
+   ```bash
+   docker compose --profile tunnel up -d --build
+   docker compose logs tunnel      # look for https://<random-words>.trycloudflare.com
+   ```
+
+   The `tunnel` service ([`cloudflare/cloudflared`](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/),
+   pinned by digest) starts only after the runtime is healthy, so a runtime
+   that rejected its configuration is never exposed. No Cloudflare account is
+   needed.
+3. Once per environment: **Settings → General → External requests** → add
+   `*.trycloudflare.com` → **Save**.
+4. In the app: **New runtime connection** with the `https://….trycloudflare.com`
+   address, username `opencode` and your password → **Test connection** →
+   **Save connection** → **Let’s Rock**.
+
+**The address changes every time the tunnel restarts.** After
+`docker compose --profile tunnel up -d` (or a reboot), read the new address
+with `docker compose logs tunnel` and edit the connection in the app.
+
+Security of this option:
+
+* The runtime is reachable from the Internet at a random address. Every
+  request needs the runtime password, and the gateway only exposes the routes
+  the app uses (no terminal, shell or configuration routes).
+* The gateway rejects requests that arrive through a proxy or tunnel while the
+  development default password is in use.
+* Allowing `*.trycloudflare.com` lets every app in the environment call any
+  quick-tunnel address. Remove the entry when you stop testing.
+* Quick tunnels are meant for testing. For teams use a
+  [server](docker.md) or a cloud deployment with your own HTTPS address.
+
+## Option B: run the app locally with `dt-app dev`
+
+No tunnel and no settings change: the app runs on your computer and its
+functions call the runtime on `localhost`.
+
+```bash
+docker compose up -d --build    # runtime on http://127.0.0.1:4096 only
+curl -fsS http://127.0.0.1:4096/rocky/v1/livez   # {"status":"ok"}
+
+cd dynatrace-app
+npm ci
+DT_APP_ENVIRONMENT_URL=https://<environment-id>.apps.dynatrace.com npm start   # opens your browser; sign in to Dynatrace
+```
+
+In the app: **New runtime connection** → Runtime URL `http://localhost:4096`,
+username `opencode`, your password → **Test connection** → **Save connection**
+→ **Let’s Rock**. Plain HTTP is accepted only for `localhost`/`127.0.0.1`, and
+the connection test reports it as a warning.
+
+To use the documented development default password `edunzzxgundam79` here,
+set `NODE_ENV=development` and leave `OPENCODE_SERVER_PASSWORD` empty in `.env`.
+Never combine that with the tunnel (the gateway rejects it).
+
+Verified: the built `connection-test` and `runtime-proxy` functions, run in the
+local Dynatrace JavaScript runtime that `dt-app dev` uses, passed every
+connection-test step against a runtime at `http://localhost:4096` and created a
+session, sent a prompt, received the reply and deleted the session.
+
+Notes:
 
 * In `dt-app dev`, runtime connections are stored in local mock settings
   (`dynatrace-app/settings/local-mock-data/`, git-ignored). Saved sessions use
   the real Grail Resource Store of your environment.
 * Port 4096 is published on `127.0.0.1` only. Never publish it beyond localhost.
 
+## Health checks
+
+```bash
+docker compose ps                                   # rocky-agent should be "healthy"
+curl -fsS http://127.0.0.1:4096/rocky/v1/livez      # {"status":"ok"}
+docker compose logs rocky-agent                     # startup checks (dtctl, model provider)
+```
+
 ## Cleanup
 
 ```bash
-docker compose down -v   # removes the container, the workspace volume and every ephemeral session
+docker compose --profile tunnel down      # stop; keeps the workspace volume
+docker compose --profile tunnel down -v   # also removes the workspace volume and every ephemeral session
 ```
+
+Remove `*.trycloudflare.com` from **External requests** when you no longer use
+the tunnel.
+
+## Verification status
+
+* Option B was verified as described above.
+* Option A has not been run end to end yet: the compose configuration and the
+  gateway's proxy check are covered by tests, but no real tunnel has been
+  started against a real environment.

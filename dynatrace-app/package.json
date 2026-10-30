@@ -8,6 +8,7 @@
     "start": "dt-app dev",
     "build": "dt-app build",
     "deploy": "dt-app deploy",
+    "deploy:token": "bash scripts/deploy.sh",
     "uninstall": "dt-app uninstall",
     "info": "dt-app info",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p src/api/tsconfig.json",

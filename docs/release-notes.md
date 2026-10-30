@@ -2,12 +2,23 @@
 
 ## Unreleased
 
+* README **Getting started** in five steps: create two platform tokens, install
+  the app from GitHub Codespaces, start the runtime with Docker Compose, allow
+  the tunnel host once, connect.
+* GitHub Codespaces now follows the pattern of the other Edunzz Dynatrace apps:
+  the creation page asks for `DT_APP_ENVIRONMENT_URL` and `DT_APP_PLATFORM_TOKEN`,
+  and `npm run deploy:token` deploys the app without a browser sign-in.
+* Docker Compose: optional `tunnel` profile (Cloudflare quick tunnel, pinned by
+  digest) so the installed app can reach a runtime on your computer; production
+  rules by default (`NODE_ENV=production`).
+* Gateway: rejects requests that arrive through a proxy or tunnel while the
+  development default password is in use.
 * Platform token guide in the app and the docs: `dt0s16.` prefix, how to create it
-  for a service user, scope profiles (recommended `readwrite-mine`, read-only, RCA
-  minimum) and a separate app deployment token.
-* New first deployment option: everything local with Docker Compose + `dt-app dev`.
-* GitHub Codespaces dev container that asks for the parameters, deploys the app
-  with `DT_APP_PLATFORM_TOKEN` and can start the runtime.
+  for a service user, scope profiles (Starter with 13 scopes, full `readwrite-mine`,
+  read-only, RCA minimum) and a separate app deployment token
+  (`app-engine:apps:install`, `app-engine:apps:run`, `app-engine:apps:delete`).
+* Running everything on your computer with Docker Compose + `dt-app dev`
+  remains available without a tunnel.
 
 ## 0.1.0 (unreleased)
 

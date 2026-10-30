@@ -6,86 +6,86 @@ import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const setup = join(repo, ".devcontainer", "setup.sh");
+const deploy = join(repo, "dynatrace-app", "scripts", "deploy.sh");
+const welcome = join(repo, ".devcontainer", "welcome.sh");
+const TOKEN = "dt0s16.FAKEFAKEFAKE.notarealtokenvalue000";
 
-const BASE = {
-  ROCKY_SETUP_DRY_RUN: "1",
-  DT_ENVIRONMENT_URL: "https://abc12345.apps.dynatrace.com/",
-  DT_APP_PLATFORM_TOKEN: "dt0s16.FAKEFAKEFAKE.notarealtokenvalue000",
-};
-
-function run(env) {
-  const result = spawnSync("bash", [setup, "--non-interactive"], {
+function bash(script, env, args = []) {
+  const result = spawnSync("bash", [script, ...args], {
     env: { PATH: process.env.PATH, HOME: process.env.HOME ?? process.env.USERPROFILE, ...env },
     encoding: "utf8",
   });
-  return { status: result.status, out: `${result.stdout}${result.stderr}`.replace(/\x1b\[[0-9;]*m/g, "") };
+  return { status: result.status, out: `${result.stdout}${result.stderr}` };
 }
 
-describe(".devcontainer/setup.sh", () => {
-  it("deploys the app only when no runtime token is given", () => {
-    const r = run(BASE);
+describe("dynatrace-app/scripts/deploy.sh (npm run deploy:token)", () => {
+  it("deploys with the platform token and prints the app link", () => {
+    const r = bash(deploy, { ROCKY_DEPLOY_DRY_RUN: "1", DT_APP_ENVIRONMENT_URL: "https://abc12345.apps.dynatrace.com/", DT_APP_PLATFORM_TOKEN: TOKEN }, ["--yes"]);
     assert.equal(r.status, 0, r.out);
-    assert.match(r.out, /\[dry-run\] npx dt-app deploy --no-open --non-interactive/);
-    assert.doesNotMatch(r.out, /docker compose up/);
-    assert.match(r.out, /App:\s+https:\/\/abc12345\.apps\.dynatrace\.com\/ui\/apps\/my\.rocky\.agent/);
+    assert.match(r.out, /Deploying my\.rocky\.agent 0\.1\.0 to https:\/\/abc12345\.apps\.dynatrace\.com/);
+    assert.match(r.out, /\[dry-run\] npx dt-app deploy --environment-url https:\/\/abc12345\.apps\.dynatrace\.com/);
+    assert.match(r.out, /Open it at https:\/\/abc12345\.apps\.dynatrace\.com\/ui\/apps\/my\.rocky\.agent/);
+    assert.doesNotMatch(r.out, /notarealtokenvalue/);
   });
 
-  it("starts the runtime and builds the Codespaces URL without echoing secrets", () => {
-    const r = run({
-      ...BASE,
-      DT_PLATFORM_TOKEN: "dt0s16.FAKEFAKEFAKE.notarealtokenvalue111",
-      OPENCODE_MODEL: "anthropic/claude-sonnet-4-5",
-      ANTHROPIC_API_KEY: "sk-ant-fake-not-real-0000000000",
-      CODESPACE_NAME: "demo-abc",
-      GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN: "app.github.dev",
-    });
-    assert.equal(r.status, 0, r.out);
-    assert.match(r.out, /\[dry-run\] docker compose up -d --build/);
-    assert.match(r.out, /Runtime:\s+https:\/\/demo-abc-4096\.app\.github\.dev/);
-    assert.match(r.out, /Password: generated/);
-    assert.doesNotMatch(r.out, /notarealtokenvalue|sk-ant-fake/);
-    assert.doesNotMatch(r.out, /ports visibility/, "the port stays private unless requested");
+  it("explains what is missing", () => {
+    const r = bash(deploy, { ROCKY_DEPLOY_DRY_RUN: "1" }, ["--yes"]);
+    assert.equal(r.status, 1);
+    assert.match(r.out, /Missing: DT_APP_ENVIRONMENT_URL DT_APP_PLATFORM_TOKEN/);
   });
 
-  it("skips the deployment without an app token", () => {
-    const r = run({ ROCKY_SETUP_DRY_RUN: "1", DT_ENVIRONMENT_URL: BASE.DT_ENVIRONMENT_URL });
-    assert.equal(r.status, 0, r.out);
-    assert.match(r.out, /skipping the app deployment/);
+  it("rejects the classic environment URL", () => {
+    const r = bash(deploy, { ROCKY_DEPLOY_DRY_RUN: "1", DT_APP_ENVIRONMENT_URL: "https://abc12345.live.dynatrace.com", DT_APP_PLATFORM_TOKEN: TOKEN }, ["--yes"]);
+    assert.equal(r.status, 1);
+    assert.match(r.out, /must be the platform URL/);
   });
 
-  for (const [name, url, message] of [
-    ["an HTTP URL", "http://abc12345.apps.dynatrace.com", /HTTPS URL/],
-    ["a URL with a path", "https://abc12345.apps.dynatrace.com/ui", /HTTPS URL/],
-    ["the classic URL", "https://abc12345.live.dynatrace.com", /platform URL/],
-  ]) {
-    it(`rejects ${name}`, () => {
-      const r = run({ ...BASE, DT_ENVIRONMENT_URL: url });
-      assert.equal(r.status, 1, r.out);
-      assert.match(r.out, message);
-    });
-  }
-
-  it("rejects a short runtime password", () => {
-    const r = run({ ...BASE, ROCKY_START_RUNTIME: "true", DT_PLATFORM_TOKEN: "dt0s16.FAKEFAKEFAKE.notarealtokenvalue111", OPENCODE_SERVER_PASSWORD: "short" });
-    assert.equal(r.status, 1, r.out);
-    assert.match(r.out, /at least 16 characters/);
+  it("passes extra arguments to dt-app deploy", () => {
+    const r = bash(deploy, { ROCKY_DEPLOY_DRY_RUN: "1", DT_APP_ENVIRONMENT_URL: "https://abc12345.apps.dynatrace.com", DT_APP_PLATFORM_TOKEN: TOKEN }, ["--yes", "--dry-run"]);
+    assert.equal(r.status, 0, r.out);
+    assert.match(r.out, /dt-app deploy --environment-url \S+ --dry-run/);
   });
 });
 
-describe(".devcontainer/devcontainer.json", () => {
+describe(".devcontainer", () => {
   const raw = readFileSync(join(repo, ".devcontainer", "devcontainer.json"), "utf8");
   const config = JSON.parse(raw.replace(/^\s*\/\/.*$/gm, ""));
 
-  it("pins the image and features", () => {
+  it("pins the image and installs the app dependencies", () => {
     assert.match(config.image, /:\d+\.\d+\.\d+-24-bookworm$/);
-    for (const feature of Object.keys(config.features)) assert.match(feature, /:\d+\.\d+\.\d+$/, feature);
+    assert.match(config.postCreateCommand, /npm ci --prefix dynatrace-app/);
+    assert.equal(config.postAttachCommand, "bash .devcontainer/welcome.sh");
   });
 
-  it("asks for the deployment parameters as Codespaces secrets", () => {
-    for (const name of ["DT_ENVIRONMENT_URL", "DT_APP_PLATFORM_TOKEN", "DT_PLATFORM_TOKEN", "OPENCODE_SERVER_PASSWORD"]) {
-      assert.ok(config.secrets[name]?.description, name);
-    }
-    assert.equal(config.postCreateCommand, "bash .devcontainer/post-create.sh");
+  it("asks for the same two secrets as the other Edunzz Dynatrace apps", () => {
+    assert.deepEqual(Object.keys(config.secrets), ["DT_APP_ENVIRONMENT_URL", "DT_APP_PLATFORM_TOKEN"]);
+    assert.match(config.secrets.DT_APP_PLATFORM_TOKEN.description, /app-engine:apps:install/);
+  });
+
+  it("welcome message shows where the app goes without printing the token", () => {
+    const r = bash(welcome, { DT_APP_ENVIRONMENT_URL: "https://abc12345.apps.dynatrace.com", DT_APP_PLATFORM_TOKEN: TOKEN });
+    assert.match(r.out, /Environment URL : https:\/\/abc12345\.apps\.dynatrace\.com/);
+    assert.match(r.out, /Platform token  : set/);
+    assert.match(r.out, /npm run deploy:token/);
+    assert.doesNotMatch(r.out, /notarealtokenvalue/);
+  });
+
+  it("offers npm run deploy:token from the repository root", () => {
+    const root = JSON.parse(readFileSync(join(repo, "package.json"), "utf8"));
+    assert.match(root.scripts["deploy:token"], /--prefix dynatrace-app run deploy:token/);
+    const app = JSON.parse(readFileSync(join(repo, "dynatrace-app", "package.json"), "utf8"));
+    assert.equal(app.scripts["deploy:token"], "bash scripts/deploy.sh");
+  });
+});
+
+describe("docker-compose.yml", () => {
+  const compose = readFileSync(join(repo, "docker-compose.yml"), "utf8");
+
+  it("defaults to production rules and keeps the tunnel optional", () => {
+    assert.match(compose, /NODE_ENV: \$\{NODE_ENV:-production\}/);
+    assert.match(compose, /profiles: \["tunnel"\]/);
+    assert.match(compose, /condition: service_healthy/);
+    assert.match(compose, /cloudflare\/cloudflared:[\d.]+@sha256:[0-9a-f]{64}/);
+    assert.match(compose, /"127\.0\.0\.1:4096:4096"/);
   });
 });

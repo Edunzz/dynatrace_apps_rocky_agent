@@ -1,14 +1,115 @@
 # Rocky Agent
 
-**A portable [OpenCode](https://opencode.ai) agent runtime with the Dynatrace
-skills and `dtctl`, and a Dynatrace App to run investigations with it.**
+**An AI agent for Dynatrace that you run yourself.** Ask for a root cause
+analysis, a log-quality review, an alert-quality notebook or a business
+dashboard from a Dynatrace app; the agent investigates with `dtctl` and the
+official Dynatrace skills, works read-only by default and asks before it
+changes anything.
 
-Run the container anywhere your Dynatrace environment can reach over HTTPS
-(Docker, Amazon ECS, Azure Container Apps, Kubernetes), connect it from the
-Rocky Agent app, and ask for a root cause analysis, a log-quality review, an
-alert-quality notebook or a business dashboard. The agent works read-only by
-default and asks for an explicit, scoped confirmation before it changes
-anything.
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Edunzz/dynatrace_apps_rocky_agent)
+
+## Getting started
+
+You will install the **app** in your Dynatrace environment (from GitHub
+Codespaces, nothing to install) and run the **agent runtime** on your computer
+with Docker. About 20 minutes, most of it waiting for builds.
+
+**You need:** a Dynatrace SaaS environment where you can install apps and edit
+settings · a GitHub account · [Docker Desktop](https://www.docker.com/products/docker-desktop/) ·
+an Anthropic or OpenAI API key (optional: without one the agent uses free OpenCode Zen models).
+
+### Step 1 — Create two platform tokens
+
+Go to [My platform tokens](https://myaccount.dynatrace.com/platformTokens) →
+**Platform token**. For each token: give it a name and an expiration date,
+choose your environment, add the scopes, select **Generate** and copy it (it is
+shown only once). Tokens start with `dt0s16.`.
+
+| Token | What it is for | Scopes |
+|---|---|---|
+| **App token** | Installs the app (step 2) | `app-engine:apps:install`, `app-engine:apps:run`, `app-engine:apps:delete` |
+| **Runtime token** | Lets the agent read your Dynatrace data (step 3) | `storage:buckets:read`, `storage:logs:read`, `storage:metrics:read`, `storage:spans:read`, `storage:events:read`, `storage:entities:read`, `storage:smartscape:read`, `storage:bizevents:read`, `storage:user.events:read`, `storage:user.sessions:read`, `storage:system:read`, `document:documents:read`, `document:documents:write` |
+
+Already have an app token for another Edunzz Dynatrace app? Reuse it. A token
+only works within its user's permissions; for teams, create the runtime token
+for a service user ([details](docs/dynatrace-setup.md)).
+
+### Step 2 — Install the app in Dynatrace
+
+1. Click **Open in GitHub Codespaces** above.
+2. On the creation page, fill in the two recommended secrets and select **Create codespace**:
+
+   | Secret | Value |
+   |---|---|
+   | `DT_APP_ENVIRONMENT_URL` | `https://<environment-id>.apps.dynatrace.com` |
+   | `DT_APP_PLATFORM_TOKEN` | the **app token** from step 1 |
+
+3. When the terminal shows *Rocky Agent app — ready to deploy*, run:
+
+   ```bash
+   npm run deploy:token
+   ```
+
+   Press **Enter** twice to keep your values. It prints the app link:
+   `https://<environment-id>.apps.dynatrace.com/ui/apps/my.rocky.agent`.
+
+You can stop the codespace afterwards; the app stays installed.
+
+### Step 3 — Start the runtime on your computer
+
+```bash
+git clone https://github.com/Edunzz/dynatrace_apps_rocky_agent.git
+cd dynatrace_apps_rocky_agent
+cp .env.example .env          # Windows (PowerShell): copy .env.example .env
+```
+
+Open `.env` in any editor and fill in:
+
+| Line | Value |
+|---|---|
+| `DT_PLATFORM_URL` | `https://<environment-id>.apps.dynatrace.com` |
+| `DT_PLATFORM_TOKEN` | the **runtime token** from step 1 |
+| `OPENCODE_SERVER_PASSWORD` | a password you choose, **16 characters or more** |
+| `ANTHROPIC_API_KEY` | your key; or clear `OPENCODE_MODEL=` to use free models |
+
+Then start it with a public HTTPS tunnel, so the app in Dynatrace can reach it:
+
+```bash
+docker compose --profile tunnel up -d --build    # the first build takes ~10 minutes
+docker compose logs tunnel                        # copy the https://….trycloudflare.com address
+```
+
+### Step 4 — Allow Dynatrace to call the tunnel (once)
+
+In Dynatrace: **Settings → General → External requests** → add the host
+`*.trycloudflare.com` → **Save**. (Needs settings permission; ask an admin if
+you cannot edit it.)
+
+### Step 5 — Connect and rock
+
+1. Open the app link from step 2.
+2. **New runtime connection**: Runtime URL = the `https://….trycloudflare.com`
+   address, Username = `opencode`, Password = your `OPENCODE_SERVER_PASSWORD`.
+3. **Test connection** → **Save connection**.
+4. Pick a suggested prompt (or write your own) → **Let’s Rock**.
+
+**Stop:** `docker compose --profile tunnel down`. **Start again:** the same
+`up` command; the tunnel address changes each time, so edit the connection in
+the app with the new address.
+
+> [!WARNING]
+> The tunnel makes your runtime reachable from the Internet at a random
+> address, protected by your password. Use it to try Rocky Agent; for teams use
+> a [server or cloud deployment](#deployment-targets) with HTTPS.
+
+**Other ways to run it:** everything on your computer with `dt-app dev` (no
+tunnel, [guide](docs/deployment/local.md#option-b-run-the-app-locally-with-dt-app-dev)) ·
+Docker on a server · Amazon ECS · Azure Container Apps · Kubernetes — see
+[Deployment targets](#deployment-targets).
+
+---
+
+# Documentation
 
 ![Rocky Agent architecture](docs/images/architecture.png)
 
@@ -16,7 +117,7 @@ anything.
 
 ## Contents
 
-[Components](#components) · [Quick start](#quick-start) · [Security warnings](#security-warnings) ·
+[Components](#components) · [Security warnings](#security-warnings) ·
 [Environment variables](#environment-variables) · [Deployment targets](#deployment-targets) ·
 [Local development](#local-development) · [Dynatrace App installation](#dynatrace-app-installation) ·
 [Resource Store permissions](#resource-store-permissions) · [Platform token setup](#platform-token-setup) ·
@@ -39,57 +140,6 @@ routes the app needs, blocks terminal, shell, configuration and credential
 routes, sanitizes request bodies, applies per-session policy overlays, records
 approvals as audit events and exposes `/rocky/v1/status` and
 `/rocky/v1/livez`.
-
-## Quick start
-
-You need a Dynatrace **platform token** (`dt0s16.…`) for the runtime first:
-see [Platform token setup](#platform-token-setup).
-
-### Option 1: everything on your computer (Docker Compose + `dt-app dev`)
-
-```bash
-git clone https://github.com/Edunzz/dynatrace_apps_rocky_agent.git
-cd dynatrace_apps_rocky_agent
-cp .env.example .env            # set DT_PLATFORM_URL, DT_PLATFORM_TOKEN and a model provider
-docker compose up --build -d
-curl -fsS http://127.0.0.1:4096/rocky/v1/livez     # {"status":"ok"}
-
-cd dynatrace-app && npm ci
-DT_APP_ENVIRONMENT_URL=https://<environment-id>.apps.dynatrace.com npm start
-```
-
-In the app, connect to `http://localhost:4096`. This works because `dt-app dev`
-runs the app functions **on your computer**. The app installed in your
-Dynatrace environment runs its functions in Dynatrace and **cannot** reach your
-`localhost`. Details: [docs/deployment/local.md](docs/deployment/local.md).
-
-With `NODE_ENV=development` and no `OPENCODE_SERVER_PASSWORD`, the documented
-development default `edunzzxgundam79` is used and a warning is printed.
-**Production startup rejects it.**
-
-### Option 2: GitHub Codespaces
-
-**Code → Codespaces → New with options**, enter your environment URL and
-tokens, and the codespace deploys the app to your environment (and can start
-the runtime). Or create it normally and run `bash .devcontainer/setup.sh`.
-Details: [docs/deployment/codespaces.md](docs/deployment/codespaces.md).
-
-### Option 3: a server or the cloud
-
-Running the published image directly (secrets come from a file, not from shell history):
-
-```bash
-install -m 600 /dev/null rocky.env && ${EDITOR:-vi} rocky.env
-docker run --rm --name rocky-agent -p 127.0.0.1:4096:4096 --env-file rocky.env \
-  -v rocky-workspace:/workspace \
-  --read-only --tmpfs /tmp:size=512m --tmpfs /home/rocky:size=1g,uid=10001,gid=10001 \
-  --cap-drop ALL --security-opt no-new-privileges:true \
-  ghcr.io/edunzz/dynatrace_apps_rocky_agent:0.1.0
-```
-
-Then put an HTTPS reverse proxy in front of it, deploy the app
-([below](#dynatrace-app-installation)) and run the connection test. ECS, Azure
-Container Apps and Kubernetes are covered in [Deployment targets](#deployment-targets).
 
 ## Security warnings
 
@@ -136,13 +186,27 @@ Variables whose names contain `TOKEN`, `PASSWORD`, `SECRET`, `API_KEY`,
 
 | Target | Templates | Guide |
 |---|---|---|
-| Local: Docker Compose + `dt-app dev` | [`docker-compose.yml`](docker-compose.yml) | [docs/deployment/local.md](docs/deployment/local.md) |
-| GitHub Codespaces | [`.devcontainer/`](.devcontainer/) | [docs/deployment/codespaces.md](docs/deployment/codespaces.md) |
+| Your computer: Docker Compose + tunnel (Getting started) | [`docker-compose.yml`](docker-compose.yml) | [docs/deployment/local.md](docs/deployment/local.md) |
+| Your computer: Docker Compose + `dt-app dev` (no tunnel) | [`docker-compose.yml`](docker-compose.yml) | [docs/deployment/local.md](docs/deployment/local.md#option-b-run-the-app-locally-with-dt-app-dev) |
+| App installation from GitHub Codespaces | [`.devcontainer/`](.devcontainer/) | [docs/deployment/codespaces.md](docs/deployment/codespaces.md) |
 | Docker on a server | [`docker-compose.yml`](docker-compose.yml), [`deploy/local/`](deploy/local/) | [docs/deployment/docker.md](docs/deployment/docker.md) |
 | Amazon ECS (Fargate) | [Terraform](deploy/aws-ecs/terraform/), [CloudFormation](deploy/aws-ecs/cloudformation/rocky-agent.yaml) | [docs/deployment/aws-ecs.md](docs/deployment/aws-ecs.md) |
 | Azure Container Apps | [Bicep](deploy/azure-container-apps/bicep/main.bicep), [Terraform](deploy/azure-container-apps/terraform/) | [docs/deployment/azure-container-apps.md](docs/deployment/azure-container-apps.md) |
 | Kubernetes | [Kustomize](deploy/kubernetes/) | [docs/deployment/kubernetes.md](docs/deployment/kubernetes.md) |
 | Existing runtime | — | [docs/deployment/existing-runtime.md](docs/deployment/existing-runtime.md) |
+
+Running the published image on a server (secrets come from a file, not from shell history):
+
+```bash
+install -m 600 /dev/null rocky.env && ${EDITOR:-vi} rocky.env
+docker run --rm --name rocky-agent -p 127.0.0.1:4096:4096 --env-file rocky.env \
+  -v rocky-workspace:/workspace \
+  --read-only --tmpfs /tmp:size=512m --tmpfs /home/rocky:size=1g,uid=10001,gid=10001 \
+  --cap-drop ALL --security-opt no-new-privileges:true \
+  ghcr.io/edunzz/dynatrace_apps_rocky_agent:0.1.0
+```
+
+Then put an HTTPS reverse proxy in front of it and connect the app to its URL.
 
 Start with 1 vCPU, 2 GiB RAM and 20 GiB ephemeral storage; large repositories
 may need 2 vCPU and 4–8 GiB. Run **one replica**: sessions live inside one
@@ -176,10 +240,11 @@ docker compose -f deploy/local/docker-compose.ci.yml down -v
    ```bash
    cd dynatrace-app && npm ci
    DT_APP_ENVIRONMENT_URL=https://<environment-id>.apps.dynatrace.com npm run deploy
-   # Without a browser login: also set DT_APP_PLATFORM_TOKEN (app-engine:apps:install, app-engine:apps:run)
    ```
 
-   Or let a [Codespace](docs/deployment/codespaces.md) do it.
+   Without a browser sign-in: `npm run deploy:token` with `DT_APP_PLATFORM_TOKEN`
+   (`app-engine:apps:install`, `app-engine:apps:run`, `app-engine:apps:delete`), or
+   from [Codespaces](docs/deployment/codespaces.md) as in Getting started.
 
 3. Give users the app's scopes and the IAM policy below.
 4. Open **Rocky Agent**, deploy or pick a runtime, run **Test connection** and save.
@@ -212,7 +277,8 @@ create it for a **dedicated service user**:
 
 | Profile | `DTCTL_SAFETY_LEVEL` | Scopes |
 |---|---|---|
-| **Recommended** (default): analysis + your own notebooks, dashboards and workflows after confirmation | `readwrite-mine` | dtctl's `readwrite-mine` list + `storage:user.events:read`, `storage:user.sessions:read` (53) |
+| **Starter** (Getting started): reads data, publishes its own notebooks | `readwrite-mine` | The 13 scopes in Getting started, step 1 |
+| **Recommended** (full): analysis + your own notebooks, dashboards and workflows after confirmation | `readwrite-mine` | dtctl's `readwrite-mine` list + `storage:user.events:read`, `storage:user.sessions:read` (53) |
 | **Read-only**: analysis only; the RCA skill cannot publish its notebook | `readonly` | dtctl's `readonly` list (39) |
 | **RCA minimum** | — | `storage:buckets:read`, `storage:events:read`, `storage:logs:read`, `storage:metrics:read`, `storage:spans:read`, `storage:entities:read`, `storage:smartscape:read`, `document:documents:read`, `document:documents:write` |
 
@@ -223,8 +289,8 @@ the environment before OpenCode starts; `DTCTL_SAFETY_LEVEL` adds a client-side
 guard on top.
 
 Deploying the app without a browser login (Codespaces, CI) uses a **separate**
-platform token, `DT_APP_PLATFORM_TOKEN`, with `app-engine:apps:install` and
-`app-engine:apps:run`.
+platform token, `DT_APP_PLATFORM_TOKEN`, with `app-engine:apps:install`,
+`app-engine:apps:run` and `app-engine:apps:delete`.
 
 ## Model provider setup
 
@@ -329,9 +395,10 @@ See the full list in [docs/implementation-plan.md](docs/implementation-plan.md#5
 * One replica per runtime; sessions are not shared between replicas.
 * Deployment templates are validated statically in CI; they have not been
   applied to live AWS or Azure accounts by this project.
-* The installed app cannot reach a runtime on your `localhost`; use `dt-app dev`,
-  a public HTTPS endpoint or EdgeConnect.
-* The Codespaces setup has been tested in dry-run mode only.
+* The installed app cannot reach a runtime on your `localhost` directly; Getting
+  started uses a Cloudflare quick tunnel (testing only, the address changes on
+  every restart). The tunnel path has not been run end to end yet.
+* The Codespaces deployment script has been tested in dry-run mode only.
 
 ## License
 

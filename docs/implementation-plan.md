@@ -158,11 +158,17 @@ and `Files-SHA256-Hashes.txt`.
 * L9. The ECS, Azure Container Apps and Kubernetes templates are validated
   statically (Terraform, cfn-lint, Bicep, kubeconform) but were not applied to
   live cloud accounts.
-* L10. The Codespaces setup (`.devcontainer/`) is tested in dry-run mode only;
-  a full run in a real codespace against a real environment is pending.
-  The local option (Docker Compose + `dt-app dev`) was verified by running the
-  built app functions in the local Dynatrace JavaScript runtime against a local
-  runtime; `dt-app dev` itself was not started because it needs a browser sign-in.
+* L10. The Codespaces app deployment (`npm run deploy:token`) is tested in
+  dry-run mode only; a deployment from a real codespace to a real environment
+  is pending. Running the runtime on your computer with `dt-app dev` was
+  verified by running the built app functions in the local Dynatrace JavaScript
+  runtime against a local runtime; `dt-app dev` itself was not started because
+  it needs a browser sign-in.
+* L11. The Getting started path (installed app + Cloudflare quick tunnel) has
+  not been run end to end: the compose configuration and the gateway's proxy
+  check are covered by tests, but no real tunnel was started against a real
+  environment. Quick-tunnel addresses change on every restart and are meant for
+  testing only.
 
 ## 6. Status and verification
 

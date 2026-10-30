@@ -1,81 +1,82 @@
-# Deploy from GitHub Codespaces
+# Install the app from GitHub Codespaces
+
+[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Edunzz/dynatrace_apps_rocky_agent)
 
 The repository includes a dev container ([`.devcontainer/`](../../.devcontainer/))
-that deploys the Rocky Agent app to your Dynatrace environment and can start
-the runtime inside the codespace. Nothing has to be installed on your computer.
+with everything needed to build and deploy the Rocky Agent **app** to your
+Dynatrace environment. Nothing has to be installed on your computer. The
+**runtime** runs elsewhere: on your computer ([local.md](local.md)) or on a
+server or cloud service.
 
 ## What the codespace does
 
-1. Starts from a pinned Node.js 24 image with Docker-in-Docker and the GitHub CLI.
+1. Starts from a pinned Node.js 24 image
+   (`mcr.microsoft.com/devcontainers/javascript-node`) with the Dynatrace Apps
+   VS Code extension.
 2. Installs the app dependencies (`postCreateCommand`).
-3. Runs [`.devcontainer/setup.sh`](../../.devcontainer/setup.sh), which:
-   * asks for missing parameters (or uses Codespaces secrets);
-   * deploys the app with `dt-app deploy`, authenticated by `DT_APP_PLATFORM_TOKEN`
-     (no browser login);
-   * optionally writes `.env` (mode 0600, git-ignored), builds the runtime
-     image and starts it with Docker Compose;
-   * prints the app URL, the runtime URL and the next steps.
+3. Each time you open it, shows where the app will be deployed and whether the
+   token is set ([`welcome.sh`](../../.devcontainer/welcome.sh)). The token
+   value is never printed.
 
-Secret values are never printed. A generated runtime password stays in `.env`.
+Deploying is one command, [`npm run deploy:token`](../../dynatrace-app/scripts/deploy.sh),
+which runs `dt-app deploy` authenticated by the platform token (no browser
+sign-in).
 
 ## Parameters
 
-| Name | Required | Purpose |
-|---|---|---|
-| `DT_ENVIRONMENT_URL` | yes | `https://<environment-id>.apps.dynatrace.com` |
-| `DT_APP_PLATFORM_TOKEN` | to deploy the app | Platform token with `app-engine:apps:install`, `app-engine:apps:run` ([details](../dynatrace-setup.md#2-app-deployment-token-dt_app_platform_token)) |
-| `DT_PLATFORM_TOKEN` | to start the runtime | Runtime token ([scopes](../dynatrace-setup.md#1-runtime-platform-token-dt_platform_token)) |
-| `OPENCODE_SERVER_PASSWORD` | no | 16+ characters; generated when empty |
-| `OPENCODE_MODEL` | no | `provider/model`; empty uses OpenCode's default (Zen free models) |
-| `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `OPENCODE_API_KEY` | no | Key for the provider in `OPENCODE_MODEL` |
-| `ROCKY_START_RUNTIME` | no | `true`/`false`; by default the runtime starts when `DT_PLATFORM_TOKEN` is set |
-| `ROCKY_PUBLIC_PORT` | no | `true` makes port 4096 public (asked interactively otherwise) |
+Codespaces asks for these *recommended secrets* on the creation page:
 
-## Option A: enter the parameters when you create the codespace
+| Secret | Value |
+|---|---|
+| `DT_APP_ENVIRONMENT_URL` | `https://<environment-id>.apps.dynatrace.com` (platform URL, not `*.live.dynatrace.com`) |
+| `DT_APP_PLATFORM_TOKEN` | Platform token with `app-engine:apps:install`, `app-engine:apps:run`, `app-engine:apps:delete` ([details](../dynatrace-setup.md#2-app-deployment-token-dt_app_platform_token)) |
 
-1. On the repository page: **Code → Codespaces → … → New with options**.
-2. Fill in the parameters offered as *recommended secrets* and create the codespace.
-3. Setup runs automatically at the end of the creation; its output is in the
-   creation log (**Codespaces: View creation log**).
+Codespaces saves them as your **personal** Codespaces secrets
+(**github.com → Settings → Codespaces**) and offers them again next time. Other
+Edunzz Dynatrace apps that use the same two names reuse them; to deploy one of
+them to the same environment, select that repository for the secrets in the
+same settings page.
 
-To skip typing them every time, store them as Codespaces secrets for this
-repository (**Settings → Secrets and variables → Codespaces**).
+## Steps
 
-## Option B: answer the prompts in the terminal
+1. Click the **Open in GitHub Codespaces** badge.
+2. Fill in the two secrets and select **Create codespace**.
+3. When the terminal shows *Rocky Agent app — ready to deploy*, run:
 
-Create the codespace normally, open a terminal and run:
+   ```bash
+   npm run deploy:token
+   ```
 
-```bash
-bash .devcontainer/setup.sh
-```
+   It asks for the environment URL and the token, showing the current ones;
+   press **Enter** to keep them, or type others to deploy to a different
+   environment without changing your secrets. Changing the URL also asks for a
+   new token (a token belongs to its environment).
+4. It prints the app link:
+   `https://<environment-id>.apps.dynatrace.com/ui/apps/my.rocky.agent`.
 
-It asks only for the values that are missing. Run it again any time to
-redeploy the app or restart the runtime.
+Run the same command again to redeploy after an update. You can stop or delete
+the codespace afterwards; the app stays installed.
 
-## Using the runtime that runs in the codespace
+## The same script outside Codespaces
 
-* **With the installed app:** make port 4096 **Public** (the setup can do it,
-  or use **Ports → right-click 4096 → Port Visibility → Public**), allow the host
-  `<codespace-name>-4096.app.github.dev` in **Settings → General → External
-  requests**, and connect to `https://<codespace-name>-4096.app.github.dev`.
-  A public port is reachable by anyone who knows the URL; the gateway still
-  requires the password. Use it only for demos.
-* **With `dt-app dev`:** run the app in the codespace and connect to
-  `http://localhost:4096`. The browser sign-in of `dt-app dev` needs a local
-  redirect, so this works best with VS Code Desktop connected to the codespace.
+`npm run deploy:token` also works on Linux, macOS or Git Bash on Windows with
+Node.js 20+. The values come from the environment or from
+`dynatrace-app/.env` (copy [`dynatrace-app/.env.example`](../../dynatrace-app/.env.example)).
+In CI, `--yes` skips the questions. Other arguments are passed to
+`dt-app deploy`.
 
 ## Cleanup
 
 ```bash
-docker compose down -v                    # stop the runtime
-(cd dynatrace-app && npx dt-app uninstall) # remove the app from your environment
+(cd dynatrace-app && npx dt-app uninstall)   # remove the app from your environment
 ```
 
 Then stop or delete the codespace. Codespaces compute and storage are billed
-to your GitHub account.
+to your GitHub account (personal accounts include a free monthly quota).
 
 ## Verification status
 
-The setup script is tested in dry-run mode (deploy, runtime start, URL
-building, input validation, no secrets in the output). A full run in a real
-codespace against a real environment has not been performed yet.
+`deploy.sh` and the dev container configuration are covered by tests in
+dry-run mode (deploy command, app link, input validation, no token in the
+output). A deployment from a real codespace to a real environment has not
+been performed yet.

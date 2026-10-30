@@ -49,58 +49,60 @@ const TLS = "Terminate TLS at the load balancer, ingress or reverse proxy with a
 export const DEPLOYMENT_GUIDES: DeploymentGuide[] = [
   {
     id: "local",
-    title: "Local (Docker Compose)",
+    title: "Your computer (Docker Compose)",
     summary:
-      "Fastest way to try Rocky Agent: the runtime runs on your computer with Docker Compose and this app runs locally with dt-app dev. It works because dt-app dev executes the app functions on your computer, where http://localhost:4096 is reachable. The app installed in your Dynatrace environment runs its functions in Dynatrace and cannot reach your localhost.",
+      "Fastest way to try Rocky Agent: the runtime runs on your computer with Docker Compose, and a Cloudflare quick tunnel gives it a public HTTPS address this app can call. This app runs its functions in Dynatrace, so it cannot reach your localhost directly. Without a tunnel, run this app on your computer with dt-app dev and connect to http://localhost:4096.",
     docsPath: "docs/deployment/local.md",
     sections: [
-      { title: "Prerequisites", items: ["Docker Desktop or Docker Engine with Compose", "Node.js 20+ and Git", "A Dynatrace SaaS environment and a platform token (see “Dynatrace platform token”)", "A model provider key (or OpenCode Zen free models)"] },
+      { title: "Prerequisites", items: ["Docker Desktop or Docker Engine with Compose", "Git", "A Dynatrace SaaS environment and a runtime platform token (see “Dynatrace platform token”, Starter)", "A model provider key (or OpenCode Zen free models)", "Without the tunnel: Node.js 20+ to run dt-app dev"] },
       {
         title: "Deployment commands",
         code: {
           language: "bash",
           content: `git clone ${REPO}.git
 cd dynatrace_apps_rocky_agent
-cp .env.example .env            # set DT_PLATFORM_URL, DT_PLATFORM_TOKEN and a model provider
-docker compose up --build -d    # runtime on http://127.0.0.1:4096
+cp .env.example .env    # set DT_PLATFORM_URL, DT_PLATFORM_TOKEN, OPENCODE_SERVER_PASSWORD and a model
+docker compose --profile tunnel up -d --build
+docker compose logs tunnel    # copy the https://<random>.trycloudflare.com address
 
-cd dynatrace-app
-npm ci
-DT_APP_ENVIRONMENT_URL=https://<environment-id>.apps.dynatrace.com npm start   # dt-app dev opens the app`,
+# Without the tunnel: runtime on http://127.0.0.1:4096 and this app on your computer
+docker compose up -d --build
+cd dynatrace-app && npm ci
+DT_APP_ENVIRONMENT_URL=https://<environment-id>.apps.dynatrace.com npm start`,
         },
       },
-      { title: "Environment variables", items: [...ENV_ITEMS.slice(0, 2), "NODE_ENV=development in .env: an empty OPENCODE_SERVER_PASSWORD uses the documented development default", ...ENV_ITEMS.slice(4, 6)] },
+      { title: "Environment variables", items: [...ENV_ITEMS.slice(0, 3), ...ENV_ITEMS.slice(4, 6), "NODE_ENV: production by default. development with an empty OPENCODE_SERVER_PASSWORD uses the documented development default (dt-app dev only; rejected through the tunnel)"] },
       { title: "Secret configuration", text: "Keep secrets in .env (git-ignored, readable only by you). Never commit it." },
-      { title: "Networking requirements", items: ["Port 4096 is published on 127.0.0.1 only", "In the local app connect to http://localhost:4096 (plain HTTP is accepted for localhost only)", "Outbound HTTPS from Docker to Dynatrace and the model provider"] },
-      { title: "TLS recommendation", text: "Not needed on localhost. To use the installed app with a runtime on your computer, expose it over HTTPS with a tunnel you trust or EdgeConnect, or pick another option." },
-      { title: "Health-check instructions", code: { language: "bash", content: "docker compose ps                      # rocky-agent should be healthy\ncurl -fsS http://127.0.0.1:4096/rocky/v1/livez" } },
-      { title: "Cleanup instructions", code: { language: "bash", content: "docker compose down -v   # also removes the workspace volume and every ephemeral session" } },
-      { title: "Cost and security notes", items: ["No cloud cost; the runtime uses your machine (about 2 GiB RAM)", "Only for local development: never publish port 4096 beyond localhost"] },
+      { title: "Networking requirements", items: ["Port 4096 is published on 127.0.0.1 only; the tunnel connects to the runtime inside Docker", "Allow *.trycloudflare.com once in Settings > General > External requests, then connect to the https://….trycloudflare.com address", "The tunnel address changes on every restart: edit the connection with the new one", "With dt-app dev connect to http://localhost:4096 instead (plain HTTP is accepted for localhost only)", "Outbound HTTPS from Docker to Dynatrace, the model provider and Cloudflare"] },
+      { title: "TLS recommendation", text: "The quick tunnel serves the address with a public Cloudflare certificate. It is meant for testing: for teams use a server or cloud deployment with your own HTTPS address. Not needed with dt-app dev on localhost." },
+      { title: "Health-check instructions", code: { language: "bash", content: "docker compose ps                      # rocky-agent should be healthy\ncurl -fsS http://127.0.0.1:4096/rocky/v1/livez\ndocker compose logs tunnel             # current public address" } },
+      { title: "Cleanup instructions", code: { language: "bash", content: "docker compose --profile tunnel down -v   # also removes the workspace volume and every ephemeral session\n# Remove *.trycloudflare.com from External requests when you stop testing" } },
+      { title: "Cost and security notes", items: ["No cloud cost; the runtime uses your machine (about 2 GiB RAM)", "The tunnel makes the runtime reachable from the Internet at a random address: every request needs the password, and only the routes this app uses are exposed", "Allowing *.trycloudflare.com lets every app in the environment call any quick-tunnel address", "Never publish port 4096 itself beyond localhost"] },
     ],
-    checklist: ["docker compose ps shows rocky-agent healthy", "dt-app dev opened the app in your browser", "Test connection with http://localhost:4096 passes"],
+    checklist: ["docker compose ps shows rocky-agent healthy", "docker compose logs tunnel shows a trycloudflare.com address", "*.trycloudflare.com allowed in External requests", "Test connection passes in this app"],
   },
   {
     id: "codespaces",
-    title: "GitHub Codespaces",
+    title: "Install the app (Codespaces)",
     summary:
-      "Open the repository in a codespace: it asks for your environment and tokens, deploys this app to your Dynatrace environment and can start the runtime inside the codespace.",
+      "Install or update this app in a Dynatrace environment without installing anything on your computer: open the repository in GitHub Codespaces, enter the environment URL and an app deployment token, and run npm run deploy:token. The runtime runs elsewhere: on your computer, a server or a cloud service.",
     docsPath: "docs/deployment/codespaces.md",
     sections: [
-      { title: "Prerequisites", items: ["GitHub account with Codespaces", "Platform token with app-engine:apps:install and app-engine:apps:run to deploy the app", "Optional: runtime platform token and a model provider key to start the runtime"] },
+      { title: "Prerequisites", items: ["GitHub account with Codespaces", "App deployment platform token with app-engine:apps:install, app-engine:apps:run and app-engine:apps:delete (see “Dynatrace platform token”, App deployment)"] },
       {
         title: "Deployment commands",
-        text: "Create the codespace with “New with options” to enter the parameters, or answer the prompts of the Rocky Agent setup task in the terminal. Re-run it any time:",
-        code: { language: "bash", content: "bash .devcontainer/setup.sh" },
+        text: "Open https://codespaces.new/Edunzz/dynatrace_apps_rocky_agent, fill in the two recommended secrets and create the codespace. Then run this in its terminal (Enter keeps the current values):",
+        code: { language: "bash", content: "npm run deploy:token" },
       },
-      { title: "Environment variables", items: ["DT_ENVIRONMENT_URL: https://<environment-id>.apps.dynatrace.com", "DT_APP_PLATFORM_TOKEN: token used only to deploy the app", "DT_PLATFORM_TOKEN, OPENCODE_SERVER_PASSWORD, model provider key: only to start the runtime"] },
-      { title: "Secret configuration", text: "Store the values as Codespaces secrets for this repository (Settings > Secrets > Codespaces) so new codespaces receive them automatically. The setup writes the runtime values to a git-ignored .env with mode 0600." },
-      { title: "Networking requirements", items: ["The installed app can only reach a runtime in the codespace if port 4096 is made Public and the forwarded host (<codespace>-4096.app.github.dev) is allowed in Settings > General > External requests", "Prefer a cloud deployment for anything beyond a demo"] },
-      { title: "TLS recommendation", text: "Codespaces serves forwarded ports over HTTPS with a public certificate. Keep the runtime password strong when the port is public." },
-      { title: "Health-check instructions", code: { language: "bash", content: "docker compose ps\ncurl -fsS http://127.0.0.1:4096/rocky/v1/livez" } },
-      { title: "Cleanup instructions", text: "Stop or delete the codespace. To remove the app from your environment: cd dynatrace-app && npx dt-app uninstall." },
-      { title: "Cost and security notes", items: ["Codespaces compute and storage are billed to your GitHub account", "A public port is reachable by anyone with the URL; the gateway still requires the password", "Delete the codespace when you are done"] },
+      { title: "Environment variables", items: ["DT_APP_ENVIRONMENT_URL: https://<environment-id>.apps.dynatrace.com", "DT_APP_PLATFORM_TOKEN: token used only to deploy the app (secret)"] },
+      { title: "Secret configuration", text: "Codespaces saves both values as your personal Codespaces secrets (github.com > Settings > Codespaces) and offers them for new codespaces. Other Edunzz Dynatrace apps use the same names. The token is never printed." },
+      { title: "Networking requirements", items: ["Outbound HTTPS from the codespace to your Dynatrace environment", "No inbound access: the codespace only deploys the app"] },
+      { title: "TLS recommendation", text: "Nothing to configure: dt-app deploy calls your environment over HTTPS." },
+      { title: "Health-check instructions", text: "npm run deploy:token ends with the app link (…/ui/apps/my.rocky.agent). Open it: the app loads and offers “New runtime connection”." },
+      { title: "Cleanup instructions", text: "Stop or delete the codespace; the app stays installed. To remove the app from your environment:", code: { language: "bash", content: "cd dynatrace-app && npx dt-app uninstall" } },
+      { title: "Cost and security notes", items: ["Codespaces compute and storage are billed to your GitHub account (personal accounts include a free monthly quota)", "Use a dedicated token for deployment, never the runtime token", "Delete the codespace when you are done"] },
     ],
-    checklist: ["Setup finished without errors", "App visible in your Dynatrace environment", "Runtime healthy in the codespace (optional)"],
+    checklist: ["The codespace shows “Rocky Agent app — ready to deploy” with the token set", "npm run deploy:token printed the app link", "The app opens in your Dynatrace environment"],
   },
   {
     id: "docker",
