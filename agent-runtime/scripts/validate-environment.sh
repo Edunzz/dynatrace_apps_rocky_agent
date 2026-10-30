@@ -4,7 +4,7 @@
 
 set -uo pipefail
 
-DEFAULT_PASSWORD="edunzzxgundam79"
+DEFAULT_PASSWORD="gundamjromero2026"
 SENSITIVE_NAME_REGEX='(TOKEN|PASSWORD|PASSWD|SECRET|API_KEY|APIKEY|CREDENTIAL|AUTH)'
 
 failures=0
@@ -32,11 +32,7 @@ esac
 if [[ -z "$ROCKY_SERVER_PASSWORD" ]]; then
   fail "ROCKY_SERVER_PASSWORD is required"
 elif [[ "$ROCKY_SERVER_PASSWORD" == "$DEFAULT_PASSWORD" ]]; then
-  if [[ "$NODE_ENV" == "production" ]]; then
-    fail "ROCKY_SERVER_PASSWORD uses the documented development default. Set a unique password of at least 16 characters for production."
-  else
-    warn "ROCKY_SERVER_PASSWORD uses the documented development default. Never expose this runtime outside your workstation."
-  fi
+  warn "ROCKY_SERVER_PASSWORD is the public default password. Change it to a unique password of at least 16 characters."
 elif [[ "$NODE_ENV" == "production" && ${#ROCKY_SERVER_PASSWORD} -lt 16 ]]; then
   fail "ROCKY_SERVER_PASSWORD must be at least 16 characters in production"
 else

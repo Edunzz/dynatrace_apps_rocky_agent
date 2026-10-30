@@ -5,7 +5,7 @@
 // placeholders below; this file contains no secret values.
 /* eslint-disable noSecrets/no-secrets */
 
-export const IMAGE = "docker.io/edunzz/rocky-agent:0.2.0";
+export const IMAGE = "docker.io/edunzz/rocky-agent:0.2.1";
 export const REPO = "https://github.com/Edunzz/dynatrace_apps_rocky_agent";
 
 export type GuideLanguage = "bash" | "yaml" | "json";
@@ -60,7 +60,7 @@ export const DEPLOYMENT_GUIDES: DeploymentGuide[] = [
           language: "bash",
           content: `git clone ${REPO}.git
 cd dynatrace_apps_rocky_agent
-cp .env.example .env    # set DT_PLATFORM_URL, DT_PLATFORM_TOKEN and ROCKY_SERVER_PASSWORD
+cp .env.example .env    # set DT_PLATFORM_URL and DT_PLATFORM_TOKEN; change ROCKY_SERVER_PASSWORD
 docker compose --profile tunnel up -d
 docker compose run --rm rocky-agent login    # once: open the URL it prints, sign in to Claude, paste the code
 docker compose logs tunnel    # copy the https://<random>.trycloudflare.com address
@@ -71,7 +71,7 @@ cd dynatrace-app && npm ci
 DT_APP_ENVIRONMENT_URL=https://<environment-id>.apps.dynatrace.com npm start`,
         },
       },
-      { title: "Environment variables", items: [...ENV_ITEMS.slice(0, 3), ENV_ITEMS[5], "Claude sign-in: docker compose run --rm rocky-agent login (stored in the rocky-home volume), or CLAUDE_CODE_OAUTH_TOKEN / ANTHROPIC_API_KEY in .env", "NODE_ENV: production by default. development with an empty ROCKY_SERVER_PASSWORD uses the documented development default (dt-app dev only; rejected through the tunnel)"] },
+      { title: "Environment variables", items: [...ENV_ITEMS.slice(0, 2), "ROCKY_SERVER_PASSWORD: your own, 16+ characters (secret). Empty = the public default gundamjromero2026: it works, but change it", ENV_ITEMS[5], "Claude sign-in: docker compose run --rm rocky-agent login (stored in the rocky-home volume), or CLAUDE_CODE_OAUTH_TOKEN / ANTHROPIC_API_KEY in .env", "NODE_ENV: production by default; a password you set yourself needs 16+ characters"] },
       { title: "Secret configuration", text: "Keep secrets in .env (git-ignored, readable only by you). Never commit it." },
       { title: "Networking requirements", items: ["Port 4096 is published on 127.0.0.1 only; the tunnel connects to the runtime inside Docker", "Allow *.trycloudflare.com once in Settings > General > External requests, then connect to the https://….trycloudflare.com address", "The tunnel address changes on every restart: edit the connection with the new one", "With dt-app dev connect to http://localhost:4096 instead (plain HTTP is accepted for localhost only)", "Outbound HTTPS from Docker to Dynatrace, Anthropic and Cloudflare"] },
       { title: "TLS recommendation", text: "The quick tunnel serves the address with a public Cloudflare certificate. It is meant for testing: for teams use a server or cloud deployment with your own HTTPS address. Not needed with dt-app dev on localhost." },

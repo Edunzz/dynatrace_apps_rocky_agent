@@ -17,7 +17,7 @@ variable "name" {
 variable "image" {
   description = "Container image pinned by version or digest (never latest)."
   type        = string
-  default     = "docker.io/edunzz/rocky-agent:0.2.0"
+  default     = "docker.io/edunzz/rocky-agent:0.2.1"
   validation {
     condition     = !endswith(var.image, ":latest")
     error_message = "Pin the image to a version or digest."

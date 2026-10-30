@@ -1,5 +1,20 @@
 # Release notes
 
+## 0.2.1
+
+* **Public default password `gundamjromero2026`.** Without
+  `ROCKY_SERVER_PASSWORD` the runtime now starts with it in every mode,
+  including production and the tunnel, so a first run needs no password. It
+  replaces `edunzzxgundam79`, which was shorter than the 16-character minimum.
+  **Change it:** the startup log, the connection test and the app's home page
+  warn until you do. A password you set yourself still needs 16+ characters.
+* The gateway no longer rejects the default password through a proxy or tunnel.
+* `GET /rocky/v1/status` reports `runtime.defaultPassword`.
+* App 0.2.1: **Change the runtime password** notice; the manifest description
+  fits the 80-character limit; new connections default to the username `rocky`.
+* Docs: start the runtime before signing in to Claude; troubleshooting for
+  *container is unhealthy* and Claude login timeouts.
+
 ## 0.2.0
 
 The agent runtime now runs **Claude Code** instead of OpenCode, so you can

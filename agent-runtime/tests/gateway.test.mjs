@@ -375,18 +375,26 @@ describe("rocky gateway: failure limiter", () => {
   });
 });
 
-describe("rocky gateway: development default password", () => {
-  it("accepts direct local requests but rejects requests through a proxy or tunnel", async () => {
+describe("rocky gateway: public default password", () => {
+  it("works through a tunnel and asks to change the password in the status", async () => {
     const rt = await startRuntime({ config: { usesDefaultPassword: true } });
     try {
-      assert.equal((await rt.request("GET", "/rocky/v1/health")).status, 200);
-      for (const header of ["x-forwarded-for", "cf-connecting-ip", "forwarded", "x-real-ip"]) {
-        const res = await rt.request("GET", "/rocky/v1/health", { headers: { [header]: "203.0.113.7" } });
-        assert.equal(res.status, 403, header);
-        assert.equal(res.json.error, "default_password_remote");
-      }
-      const live = await rt.request("GET", "/rocky/v1/livez", { authenticated: false, headers: { "cf-connecting-ip": "203.0.113.7" } });
-      assert.equal(live.status, 200, "liveness stays available");
+      const res = await rt.request("GET", "/rocky/v1/health", { headers: { "cf-connecting-ip": "203.0.113.7" } });
+      assert.equal(res.status, 200);
+      const status = await rt.request("GET", "/rocky/v1/status");
+      assert.equal(status.json.runtime.defaultPassword, true);
+      assert.ok(status.json.warnings.some((w) => /public default password/.test(w)));
+    } finally {
+      await rt.stop();
+    }
+  });
+
+  it("reports a custom password as not the default", async () => {
+    const rt = await startRuntime();
+    try {
+      const status = await rt.request("GET", "/rocky/v1/status");
+      assert.equal(status.json.runtime.defaultPassword, false);
+      assert.ok(!status.json.warnings.some((w) => /default password/.test(w)));
     } finally {
       await rt.stop();
     }

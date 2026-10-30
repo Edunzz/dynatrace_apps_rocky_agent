@@ -20,7 +20,7 @@ set -Eeuo pipefail
 umask 077
 
 ROCKY_HOME="/opt/rocky"
-DEFAULT_PASSWORD="edunzzxgundam79"
+DEFAULT_PASSWORD="gundamjromero2026"
 
 export CLAUDE_CONFIG_DIR="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"
 export DISABLE_AUTOUPDATER=1 DISABLE_UPDATES=1 DISABLE_TELEMETRY=1 DISABLE_ERROR_REPORTING=1
@@ -52,16 +52,19 @@ export DTCTL_TOKEN_STORAGE=file
 
 log() { printf '{"time":"%s","level":"%s","component":"rocky-entrypoint","msg":"%s"}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" "$2"; }
 
-# The documented first-run default is only applied outside production.
-if [[ -z "${ROCKY_SERVER_PASSWORD:-}" && "$NODE_ENV" != "production" ]]; then
+# Without ROCKY_SERVER_PASSWORD the runtime starts with the public default
+# password, so a first run needs no extra setup; every surface asks to change it.
+if [[ -z "${ROCKY_SERVER_PASSWORD:-}" ]]; then
   export ROCKY_SERVER_PASSWORD="$DEFAULT_PASSWORD"
 fi
 if [[ "${ROCKY_SERVER_PASSWORD:-}" == "$DEFAULT_PASSWORD" ]]; then
   cat >&2 <<'EOF'
 ################################################################################
-#  WARNING: Rocky Agent is using the documented DEVELOPMENT DEFAULT PASSWORD.  #
-#  Anyone who knows it can drive the agent. Set ROCKY_SERVER_PASSWORD to a     #
-#  unique value of at least 16 characters. Production startup rejects it.      #
+#  WARNING: Rocky Agent is using the PUBLIC DEFAULT PASSWORD (see README).     #
+#  Anyone who finds this runtime's address can drive the agent with your       #
+#  Dynatrace token and your Claude account. CHANGE IT: set                     #
+#  ROCKY_SERVER_PASSWORD in .env (16+ characters), run the "up" command again  #
+#  and update the password of the connection in the Dynatrace app.             #
 ################################################################################
 EOF
 fi

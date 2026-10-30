@@ -5,6 +5,9 @@ import type { PlatformDeps } from "./deps";
 import { AppFunctionError } from "./envelope";
 import { callRuntime, type ResolvedRuntime } from "./runtimeClient";
 
+export const DEFAULT_PASSWORD_WARNING =
+  "Credentials accepted, but the runtime uses the public default password. Change ROCKY_SERVER_PASSWORD on the runtime (16+ characters) and update this connection.";
+
 // Oldest Claude Code version the runtime was tested with.
 export const MIN_CLAUDE_CODE_VERSION = "2.1.300";
 
@@ -91,6 +94,8 @@ export async function testConnection(runtime: ResolvedRuntime, deps: PlatformDep
     result.capabilities.push("status", "policy");
     const step = signInStep(status.data?.claude);
     add("claude", "Claude sign-in", step.status, step.detail);
+    const auth = steps.find((s) => s.id === "authentication");
+    if (auth && status.data?.runtime?.defaultPassword) Object.assign(auth, { status: "warn", detail: DEFAULT_PASSWORD_WARNING });
   } catch (error) {
     add("claude", "Claude sign-in", "warn", `Status unavailable: ${message(error)}`);
   }

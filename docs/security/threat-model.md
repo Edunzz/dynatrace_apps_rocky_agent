@@ -71,7 +71,7 @@
 
 | # | Threat | Mitigation | Residual risk |
 |---|---|---|---|
-| T1 | Runtime exposed to the Internet is brute-forced | TLS at ingress, IP restrictions, 16+ character password in production, failure limiter (10 failures → 60 s block), default password refused through proxies and tunnels | Distributed guessing; use network restrictions |
+| T1 | Runtime exposed to the Internet is brute-forced | TLS at ingress, IP restrictions, 16+ character custom password in production, failure limiter (10 failures → 60 s block); the public default password is accepted, with warnings in the startup log, the connection test and the app until it is changed | Distributed guessing; a runtime left on the public default password is open to anyone who finds its address |
 | T2 | Password holder gets a shell or changes the agent's configuration | The gateway exposes only the Rocky API; Claude Code never listens on a port; flags and environment are fixed by the gateway | — |
 | T3 | A repository in the workspace adds hooks, settings, environment variables or MCP servers | `--setting-sources user`, `--strict-mcp-config`, `allowManagedHooksOnly`, `CLAUDE_CODE_DISABLE_CLAUDE_MDS` | — |
 | T4 | Prompt injection makes the agent change or delete Dynatrace objects | Read-only default, permission prompts, scoped confirmation, token scopes, dtctl safety level, audit events | A user who approves a malicious command |

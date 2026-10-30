@@ -70,7 +70,7 @@ Open `.env` in any editor and fill in:
 |---|---|
 | `DT_PLATFORM_URL` | `https://<environment-id>.apps.dynatrace.com` |
 | `DT_PLATFORM_TOKEN` | the **runtime token** from step 1 |
-| `ROCKY_SERVER_PASSWORD` | a password you choose, **16 characters or more** |
+| `ROCKY_SERVER_PASSWORD` | a password you choose, **16 characters or more**. Empty = the public default `gundamjromero2026`: it works, but **change it** |
 
 Start it with a public HTTPS tunnel, so the app in Dynatrace can reach it:
 
@@ -109,7 +109,8 @@ you cannot edit it.)
 
 1. Open the app link from step 2.
 2. **New runtime connection**: Runtime URL = the `https://….trycloudflare.com`
-   address, Username = `rocky`, Password = your `ROCKY_SERVER_PASSWORD`.
+   address, Username = `rocky`, Password = your `ROCKY_SERVER_PASSWORD` (or
+   `gundamjromero2026` if you left it empty; the app then asks you to change it).
 3. **Test connection** (every step should pass, including *Claude sign-in*) →
    **Save connection**.
 4. Pick a suggested prompt (or write your own) → **Let’s Rock**.
@@ -167,9 +168,11 @@ It also records approvals as audit events and exposes `/rocky/v1/status` and
 
 * **Never expose port 4096 directly to the Internet.** Terminate TLS at a
   load balancer, ingress or reverse proxy, and restrict who can reach it.
-* The default password `edunzzxgundam79` is public. It is accepted only when
-  `NODE_ENV` is not `production`; production requires a unique password of at
-  least 16 characters.
+* The default password `gundamjromero2026` is **public**. The runtime accepts it
+  so a first run works without setup, but anyone who finds the runtime's address
+  can then use your agent, your Dynatrace token and your Claude account.
+  **Change it** (16+ characters): the startup log, the connection test and the
+  app's home page warn until you do.
 * The platform token gives the agent the permissions of its service user.
   Create a **dedicated service user** with only the scopes you need.
 * A Claude subscription login belongs to one person. Anthropic does not allow
@@ -183,7 +186,7 @@ It also records approvals as audit events and exposes `/rocky/v1/status` and
 |---|---|---|---|
 | `DT_PLATFORM_URL` | yes | | `https://<environment-id>.apps.dynatrace.com` |
 | `DT_PLATFORM_TOKEN` | yes | | Platform token (secret). Never leaves the container. |
-| `ROCKY_SERVER_PASSWORD` | yes (production) | `edunzzxgundam79` outside production | Runtime password (secret), 16+ characters in production |
+| `ROCKY_SERVER_PASSWORD` | recommended | `gundamjromero2026` (public: change it) | Runtime password (secret); your own needs 16+ characters in production |
 | `ROCKY_SERVER_USERNAME` | no | `rocky` | Runtime username |
 | `ROCKY_PORT` | no | `4096` | Listening port |
 | `CLAUDE_CODE_OAUTH_TOKEN` | one Claude credential | | Claude subscription token from `setup-token` (secret, personal use) |
@@ -222,7 +225,7 @@ docker run --rm --name rocky-agent -p 127.0.0.1:4096:4096 --env-file rocky.env \
   -v rocky-workspace:/workspace -v rocky-home:/home/rocky \
   --read-only --tmpfs /tmp:size=512m \
   --cap-drop ALL --security-opt no-new-privileges:true \
-  docker.io/edunzz/rocky-agent:0.2.0
+  docker.io/edunzz/rocky-agent:0.2.1
 ```
 
 Then put an HTTPS reverse proxy in front of it and connect the app to its URL.
@@ -390,7 +393,7 @@ and stored as an immutable tabular resource in Dynatrace Grail Resource Store.
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `up` says *container … is unhealthy*; the log says `environment validation failed` | Missing variable, default password in production, password shorter than 16 characters | `docker compose logs rocky-agent`, fix the `[FAIL]` lines, run `up` again |
+| `up` says *container … is unhealthy*; the log says `environment validation failed` | Missing variable, or a password of your own shorter than 16 characters | `docker compose logs rocky-agent`, fix the `[FAIL]` lines, run `up` again |
 | **Claude: Not signed in** | No Claude credential | `docker compose run --rm rocky-agent login`, or set `CLAUDE_CODE_OAUTH_TOKEN` / `ANTHROPIC_API_KEY` |
 | `login` says `Login failed: timeout of 30000ms exceeded` | Claude's sign-in server did not answer in time | Run `login` again with the new address and paste the code once. If it keeps failing and Claude Code is installed on your computer, run `claude setup-token` there, put the token in `.env` as `CLAUDE_CODE_OAUTH_TOKEN` and run `up` again |
 | `login` says `Request failed with status code 400` | Code pasted twice, incomplete, or from an older address | Run `login` again and paste the newest code once |
@@ -399,6 +402,7 @@ and stored as an immutable tabular resource in Dynatrace Grail Resource Store.
 | **Dynatrace: authentication failed** | Token invalid, expired or wrong environment | Recreate the platform token; check `DT_PLATFORM_URL` |
 | App: *runtime could not be reached* | Host not allowlisted, private CA, private network | External requests allowlist, public certificate, EdgeConnect |
 | App: *authentication failed* | Wrong username or password (the username is `rocky`) | Edit the connection and re-enter the password |
+| App: **Change the runtime password** | The runtime uses the public default password | Set `ROCKY_SERVER_PASSWORD` in `.env` (16+ characters), run `up` again, edit the connection |
 | `session_busy` (409) | The agent is still working on that session | Wait, or **Stop generation** |
 | `route_not_allowed` | Not part of the Rocky API | Expected for anything outside `/rocky/v1` |
 | Saved session list empty | Missing `storage:files:read` or IAM path | See Resource Store permissions |

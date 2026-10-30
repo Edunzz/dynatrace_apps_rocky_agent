@@ -1,5 +1,5 @@
 # gitleaks configuration: default rules plus a narrow allowlist for values that
-# are documented as non-secret (the development default password and CI
+# are documented as non-secret (the public default password and CI
 # placeholders). Never add real credentials here.
 
 [extend]
@@ -8,7 +8,7 @@ useDefault = true
 [allowlist]
 description = "Documented non-secret placeholders"
 regexes = [
-  '''edunzzxgundam79''',
+  '''gundamjromero2026''',
   '''ci-integration-password-0123''',
   '''ci-placeholder-not-a-real-token''',
   '''ci-mock-anthropic-key-not-real''',

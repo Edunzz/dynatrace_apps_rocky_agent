@@ -38,9 +38,11 @@ cp .env.example .env          # Windows (PowerShell): copy .env.example .env
 ```
 
 Fill in `DT_PLATFORM_URL`, `DT_PLATFORM_TOKEN` and `ROCKY_SERVER_PASSWORD`
-(16+ characters). Compose runs the runtime with production rules by default
-(`NODE_ENV=production`), so it refuses to start with a short password or the
-development default.
+(16+ characters). With the password empty the runtime uses the public default
+`gundamjromero2026`: it works, but change it, because anyone who finds the
+address can use your agent; the app warns until you do. Compose runs the
+runtime with production rules by default (`NODE_ENV=production`), so it refuses
+to start with a password of your own shorter than 16 characters.
 
 Sign in to Claude once, before or after starting the runtime (the login works
 while it runs):
@@ -90,8 +92,8 @@ Security of this option:
 * The runtime is reachable from the Internet at a random address. Every
   request needs the runtime password, and the gateway only exposes the routes
   the app uses (no terminal, shell or configuration routes).
-* The gateway rejects requests that arrive through a proxy or tunnel while the
-  development default password is in use.
+* With the public default password anyone who finds the address can use the
+  runtime. Change it; the app and the connection test warn until you do.
 * Allowing `*.trycloudflare.com` lets every app in the environment call any
   quick-tunnel address. Remove the entry when you stop testing.
 * Quick tunnels are meant for testing. For teams use a
@@ -116,9 +118,8 @@ username `rocky`, your password → **Test connection** → **Save connection**
 → **Let’s Rock**. Plain HTTP is accepted only for `localhost`/`127.0.0.1`, and
 the connection test reports it as a warning.
 
-To use the documented development default password `edunzzxgundam79` here,
-set `NODE_ENV=development` and leave `ROCKY_SERVER_PASSWORD` empty in `.env`.
-Never combine that with the tunnel (the gateway rejects it).
+With `ROCKY_SERVER_PASSWORD` empty the runtime uses the public default password
+`gundamjromero2026`; change it as soon as you can.
 
 Verified with the runtime 0.1 (OpenCode): the built `connection-test` and
 `runtime-proxy` functions, run in the local Dynatrace JavaScript runtime that

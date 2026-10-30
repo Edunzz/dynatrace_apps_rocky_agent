@@ -1,4 +1,4 @@
-import { MIN_CLAUDE_CODE_VERSION, testConnection } from "../../src/functions/connectionTest";
+import { DEFAULT_PASSWORD_WARNING, MIN_CLAUDE_CODE_VERSION, testConnection } from "../../src/functions/connectionTest";
 import { resolveConnection } from "../../src/functions/connections";
 import { AppFunctionError } from "../../src/functions/envelope";
 import { handleConnectionTest, handleRuntimeProxy, handleSessionStore } from "../../src/functions/handlers";
@@ -140,6 +140,17 @@ describe("connection test", () => {
     expect(result.agentVersion).toBe("2.1.308");
     expect(result.runtimeVersion).toBe("0.2.0");
     expect(MIN_CLAUDE_CODE_VERSION).toBe("2.1.300");
+  });
+
+  it("asks to change the public default password", async () => {
+    const fetch = fakeRuntimeFetch({
+      "GET /rocky/v1/status": () => jsonResponse(200, { ...STATUS, runtime: { ...STATUS.runtime, defaultPassword: true } }),
+    });
+    const result = await testConnection(RUNTIME, memoryDeps(fetch));
+    const auth = result.steps.find((s) => s.id === "authentication");
+    expect(auth?.status).toBe("warn");
+    expect(auth?.detail).toBe(DEFAULT_PASSWORD_WARNING);
+    expect(result.ok).toBe(true);
   });
 
   it("reports authentication failures and skips the rest", async () => {

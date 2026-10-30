@@ -60,7 +60,7 @@ credential in use; the app's status bar shows it too.
 |---|---|---|---|
 | `DT_PLATFORM_URL` | yes | | `https://<environment-id>.apps.dynatrace.com` |
 | `DT_PLATFORM_TOKEN` | yes | | Platform token. Written to the dtctl config, then unset before anything else starts. |
-| `ROCKY_SERVER_PASSWORD` | yes in production | `edunzzxgundam79` outside production only | ≥ 16 characters in production; the default is rejected. Never reaches Claude Code. |
+| `ROCKY_SERVER_PASSWORD` | recommended | `gundamjromero2026` (public; change it) | Your own needs ≥ 16 characters in production. The default works, with warnings in the log, the connection test and the app. Never reaches Claude Code. |
 | `ROCKY_SERVER_USERNAME` | no | `rocky` | |
 | `ROCKY_PORT` | no | `4096` | |
 | `CLAUDE_CODE_OAUTH_TOKEN` | one credential | | From `claude setup-token` (subscription) |

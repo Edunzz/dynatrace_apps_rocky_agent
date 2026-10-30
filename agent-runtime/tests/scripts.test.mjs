@@ -53,7 +53,6 @@ describe("validate-environment.sh", () => {
     ["http platform URL", { DT_PLATFORM_URL: "http://abc12345.apps.dynatrace.com" }, /HTTPS origin/],
     ["URL with credentials", { DT_PLATFORM_URL: "https://u:p@abc12345.apps.dynatrace.com" }, /must not contain credentials/],
     ["classic API URL", { DT_PLATFORM_URL: "https://abc12345.live.dynatrace.com" }, /classic API domain/],
-    ["default password in production", { ROCKY_SERVER_PASSWORD: "edunzzxgundam79" }, /development default/],
     ["short password in production", { ROCKY_SERVER_PASSWORD: "short-pass" }, /at least 16 characters/],
     ["wildcard CORS in production", { ALLOWED_ORIGINS: "*" }, /not allowed in production/],
     ["http origin in production", { ALLOWED_ORIGINS: "http://example.com" }, /must be an https:\/\/ origin/],
@@ -69,11 +68,14 @@ describe("validate-environment.sh", () => {
     });
   }
 
-  it("allows the default password in development with a warning", () => {
-    const r = run("validate-environment.sh", { ...VALID, NODE_ENV: "development", ROCKY_SERVER_PASSWORD: "edunzzxgundam79" });
-    assert.equal(r.status, 0, r.out);
-    assert.match(r.out, /\[WARN\].*development default/);
-  });
+  for (const nodeEnv of ["production", "development"]) {
+    it(`allows the public default password in ${nodeEnv} with a warning to change it`, () => {
+      const r = run("validate-environment.sh", { ...VALID, NODE_ENV: nodeEnv, ROCKY_SERVER_PASSWORD: "gundamjromero2026" });
+      assert.equal(r.status, 0, r.out);
+      assert.match(r.out, /\[WARN\] ROCKY_SERVER_PASSWORD is the public default password\. Change it/);
+      assert.doesNotMatch(r.out, /gundamjromero2026/);
+    });
+  }
 
   it("warns, without failing, when Claude is not signed in", () => {
     const r = run("validate-environment.sh", VALID);

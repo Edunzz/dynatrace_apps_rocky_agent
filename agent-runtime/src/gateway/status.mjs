@@ -159,7 +159,7 @@ export function createClaudeProbe({ config, execFileFn = execFile, now = () => D
 export async function collectStatus({ config, probe, baselineSha256, startedAt, activeRuns, force = false }) {
   const warnings = [];
   if (config.usesDefaultPassword) {
-    warnings.push("The default development password is in use. Set ROCKY_SERVER_PASSWORD before exposing this runtime.");
+    warnings.push("The public default password is in use. Change ROCKY_SERVER_PASSWORD (16+ characters) and update the app connection.");
   }
 
   const [claude, dynatrace, manifest, installed, workspace] = await Promise.all([
@@ -184,6 +184,7 @@ export async function collectStatus({ config, probe, baselineSha256, startedAt, 
       version: config.runtimeVersion,
       nodeEnv: config.nodeEnv,
       gateway: "enabled",
+      defaultPassword: config.usesDefaultPassword,
       uptimeSeconds: Math.round((Date.now() - startedAt) / 1000),
       activeRuns,
     },

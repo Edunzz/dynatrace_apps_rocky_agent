@@ -81,14 +81,22 @@ out="$(docker run --rm "$IMAGE" not-a-command 2>&1)" && status=0 || status=$?
 out="$(docker run --rm "$IMAGE" 2>&1 || true)"
 grep -q 'DT_PLATFORM_URL is required' <<<"$out" && pass "missing variables are rejected" || fail "missing variables were not rejected"
 
-out="$(docker run --rm -e NODE_ENV=production -e DT_PLATFORM_URL=https://rocky-ci.invalid \
-  -e DT_PLATFORM_TOKEN=ci-placeholder-not-a-real-token -e ROCKY_SERVER_PASSWORD=edunzzxgundam79 "$IMAGE" 2>&1 || true)"
-if grep -q 'development default' <<<"$out" && grep -q 'refusing to start' <<<"$out"; then
-  pass "default password rejected in production"
+# Without a password the public default applies, with a warning to change it.
+# The plain-HTTP URL makes validation fail so the container exits.
+out="$(docker run --rm -e NODE_ENV=production -e DT_PLATFORM_URL=http://rocky-ci.invalid \
+  -e DT_PLATFORM_TOKEN=ci-placeholder-not-a-real-token "$IMAGE" 2>&1 || true)"
+if grep -q 'PUBLIC DEFAULT PASSWORD' <<<"$out" && grep -q '\[WARN\] ROCKY_SERVER_PASSWORD is the public default password' <<<"$out" \
+  && ! grep -q '\[FAIL\] ROCKY_SERVER_PASSWORD' <<<"$out"; then
+  pass "default password accepted in production with a warning"
 else
-  fail "default password was not rejected in production"
+  fail "default password warning missing: $out"
 fi
-grep -q 'edunzzxgundam79' <<<"$(grep -v 'WARNING' <<<"$out")" && fail "password echoed in logs" || pass "password not echoed"
+grep -q 'gundamjromero2026' <<<"$out" && fail "password echoed in logs" || pass "password not echoed"
+
+out="$(docker run --rm -e NODE_ENV=production -e DT_PLATFORM_URL=https://rocky-ci.invalid \
+  -e DT_PLATFORM_TOKEN=ci-placeholder-not-a-real-token -e ROCKY_SERVER_PASSWORD=short-pass "$IMAGE" 2>&1 || true)"
+grep -q 'at least 16 characters' <<<"$out" && grep -q 'refusing to start' <<<"$out" \
+  && pass "short password rejected in production" || fail "short password was not rejected in production"
 
 if ((failures > 0)); then
   printf '%d image check(s) failed\n' "$failures"

@@ -10,7 +10,7 @@ Parameters:
     AllowedPattern: "^[a-z][a-z0-9-]{1,28}$"
   Image:
     Type: String
-    Default: docker.io/edunzz/rocky-agent:0.2.0
+    Default: docker.io/edunzz/rocky-agent:0.2.1
     Description: Image pinned by version or digest (never latest).
   VpcId:
     Type: AWS::EC2::VPC::Id

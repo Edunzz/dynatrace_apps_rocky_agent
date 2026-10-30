@@ -53,6 +53,19 @@ export function AgentHomePage() {
             </MessageContainer.Actions>
           </MessageContainer>
         ) : null}
+        {status.data?.runtime.defaultPassword && (
+          <MessageContainer variant="critical">
+            <MessageContainer.Title>Change the runtime password</MessageContainer.Title>
+            <MessageContainer.Description>
+              This runtime uses the public default password, so anyone who finds its address can use the agent with your Dynatrace token
+              and your Claude account. On the computer that runs it, set ROCKY_SERVER_PASSWORD in <Code>.env</Code> (16 characters or
+              more), run <Code>docker compose --profile tunnel up -d</Code> and then edit this connection with the new password.
+            </MessageContainer.Description>
+            <MessageContainer.Actions>
+              <Button onClick={() => navigate("/connect")}>Edit connection</Button>
+            </MessageContainer.Actions>
+          </MessageContainer>
+        )}
         {claudeBlocked && claude && (
           <MessageContainer variant="warning">
             <MessageContainer.Title>

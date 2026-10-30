@@ -24,9 +24,6 @@ import { GatewayError, sanitizePermissionReply, sanitizePrompt, sanitizeSessionC
 import { publicSession, SessionStore } from "./sessions.mjs";
 import { collectStatus, createClaudeProbe, installedSkills } from "./status.mjs";
 
-// Headers added by reverse proxies and tunnels (cloudflared, ALB, ingress).
-const PROXY_HEADERS = ["x-forwarded-for", "forwarded", "cf-connecting-ip", "x-real-ip"];
-
 const SECURITY_HEADERS = {
   "x-content-type-options": "nosniff",
   "referrer-policy": "no-referrer",
@@ -349,16 +346,6 @@ export async function createRuntime({
         );
       }
       limiter.recordSuccess(key);
-
-      // The public development password is only acceptable for direct local
-      // connections, never through a proxy or tunnel.
-      if (config.usesDefaultPassword && PROXY_HEADERS.some((h) => req.headers[h] !== undefined)) {
-        throw new GatewayError(
-          403,
-          "default_password_remote",
-          "The development default password is not accepted through a proxy or tunnel. Set ROCKY_SERVER_PASSWORD (16+ characters) and NODE_ENV=production.",
-        );
-      }
 
       if (!matched) throw new GatewayError(404, "route_not_allowed", "Route is not available");
       routeName = matched.route.name;

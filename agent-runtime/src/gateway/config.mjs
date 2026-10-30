@@ -4,7 +4,7 @@
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const DEFAULT_PASSWORD = "edunzzxgundam79";
+const DEFAULT_PASSWORD = "gundamjromero2026";
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 // Tools that make no sense behind a web UI (scheduling, worktrees, push

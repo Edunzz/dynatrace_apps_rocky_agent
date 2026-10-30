@@ -26,6 +26,8 @@ export interface RuntimeStatus {
     gateway: string;
     uptimeSeconds: number;
     activeRuns: number;
+    // True while the runtime still uses the public default password (runtime 0.2.1+).
+    defaultPassword?: boolean;
   };
   agent: { status: ComponentState; name: string; version: string | null };
   // authMethod: none | claude.ai | oauth_token | api_key | api_key_helper | third_party (Claude Code `auth status`)
