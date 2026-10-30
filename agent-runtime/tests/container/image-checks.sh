@@ -52,8 +52,10 @@ done
 pass "required skills present"
 
 # No secrets in image metadata or history.
-if docker image inspect "$IMAGE" --format '{{json .Config.Env}}' | grep -E -q '(TOKEN|PASSWORD|API_KEY|SECRET)[A-Z_]*=[^"]'; then
-  fail "image environment contains a secret-looking value"
+secret_env="$(docker image inspect "$IMAGE" --format '{{json .Config.Env}}' |
+  jq -r '.[] | split("=")[0] | select(test("(TOKEN|PASSWORD|PASSWD|SECRET|API_KEY|CREDENTIAL)$"))')"
+if [[ -n "$secret_env" ]]; then
+  fail "image environment defines secret variables: $secret_env"
 else
   pass "no secret values in image environment"
 fi
