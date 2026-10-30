@@ -147,3 +147,49 @@ and `Files-SHA256-Hashes.txt`.
 * L4. IAM policies cannot restrict a user to their own `/lookups/rocky-agent/sessions/<owner-id>/` prefix. Users who receive broad `storage:files:read` on `/lookups/rocky-agent/*` can read other users' saved snapshots with DQL outside the app.
 * L5. A full upload → `load` round trip of a large saved session was **not** executed against a tenant during development (only the parser was). It must be validated during the first deployment (see the deployment checklist).
 * L6. No Docker engine was available on the development workstation; container behavior is validated by the CI workflows.
+* L7. The Dynatrace App was built and its functions were exercised against a
+  live runtime, but it was **not deployed to a Dynatrace environment** during
+  development. App settings secrets, Credential Vault access, Resource Store
+  uploads, DQL listing and the UI in AppEngine still need a first-deployment
+  check. No screenshots are included for that reason.
+* L8. Live Dynatrace authentication from the container (`dtctl auth whoami`
+  with a real platform token) was not executed in CI; CI verifies the degraded
+  path with an unreachable placeholder environment.
+* L9. The ECS, Azure Container Apps and Kubernetes templates are validated
+  statically (Terraform, cfn-lint, Bicep, kubeconform) but were not applied to
+  live cloud accounts.
+
+## 6. Status and verification
+
+| Phase | Status |
+|---|---|
+| 1 Runtime | Done |
+| 2 App connection, chat, sessions | Done (not deployed to a tenant, see L7) |
+| 3 Resource Store persistence | Done (parser verified on a tenant; upload/load round trip pending, see L5) |
+| 4 Deployments and CI/CD | Done (static validation, see L9) |
+| 5 Tests, documentation, PR | Done |
+
+### Acceptance criteria
+
+| # | Criterion | Result | Evidence |
+|---|---|---|---|
+| 1 | Container starts with valid variables | Verified | CI compose stack: healthy, all runtime checks |
+| 2 | OpenCode reachable through authenticated HTTPS | Partly verified | Authenticated access through the gateway verified; TLS is terminated by the ingress templates and was not exercised end to end |
+| 3 | dtctl authenticates to Dynatrace | Not verified live | Config format verified with dtctl 0.45; degraded mode verified (L8) |
+| 4 | Official `dt-*` skills discoverable | Verified | CI: 38 skills reported by `GET /skill` |
+| 5 | RCA skill installed only if valid | Verified | Installer run against both pinned repos plus a negative case |
+| 6 | Editable draw.io XML | Verified | Validator tests; CI exports PNG headlessly; RCA gate passes |
+| 7 | Connection validated and saved without exposing the password | Partly verified | Function logic and connection test against a live runtime; settings secret not exercised on a tenant (L7) |
+| 8 | Create an OpenCode session from the app | Verified at function level | App Function handlers against the live runtime in CI |
+| 9 | Send prompts and receive responses | Verified at function level | Same, with the mock model provider |
+| 10 | Destructive operations require confirmation | Verified for runtime approvals | Permission request → `always` refused → `once` approved; the confirmation block itself depends on the model following the baseline |
+| 11 | Review and customize AGENTS.md without weakening it | Verified | Weakening overlay rejected end to end; inline config precedence verified |
+| 12 | Ephemeral sessions clearly identified | Implemented | Sidebar section and session chip |
+| 13 | Persisted only on "Save to Dynatrace" | Verified | No upload outside the save action (tests) |
+| 14 | Saved content immutable | Verified with a mocked store | `overwrite: false`, SHA-256 check; real store behavior pending (L5) |
+| 15 | Only the display title can be renamed | Verified with a mocked store | Snapshot bytes unchanged after rename |
+| 16 | Permanent deletion after confirmation | Verified with a mocked store | Typed `DELETE` required; both resources removed |
+| 17 | No secrets in Grail | Verified for known formats | Redaction tests on saved content |
+| 18 | Deployment instructions work | Docker verified; others static | L9 |
+| 19 | Tests, lint, type checks and scans pass | Verified | CI workflows |
+| 20 | Delivered through a feature branch and PR | Done | `feat/rocky-agent-initial`, PR #1 |

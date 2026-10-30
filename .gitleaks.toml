@@ -16,6 +16,8 @@ regexes = [
   '''internal-upstream-password-abcdef''',
   '''e2e-password-0123456789''',
   '''a-unique-password-123''',
+  # Public ID of the Azure built-in role "Key Vault Secrets User".
+  '''4633458b-17de-408a-b874-0445c86b69e6''',
 ]
 # Test fixtures contain synthetic credentials on purpose (they verify redaction).
 paths = [
