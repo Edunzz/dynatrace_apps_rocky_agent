@@ -29,7 +29,8 @@ export interface RuntimeStatus {
     // True while the runtime still uses the public default password (runtime 0.2.1+).
     defaultPassword?: boolean;
   };
-  agent: { status: ComponentState; name: string; version: string | null };
+  // models and efforts: what the runtime accepts per prompt (runtime 0.2.3+).
+  agent: { status: ComponentState; name: string; version: string | null; models?: string[]; efforts?: string[] };
   // authMethod: none | claude.ai | oauth_token | api_key | api_key_helper | third_party (Claude Code `auth status`)
   claude: { status: ComponentState; authMethod: string; apiProvider: string | null; model: string | null; loginCommand: string };
   dynatrace: { status: ComponentState; environmentHost: string; checkedAt: string | null; detail: string | null };

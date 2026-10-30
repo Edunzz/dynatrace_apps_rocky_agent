@@ -12,7 +12,7 @@ const config: CliOptions = {
   app: {
     id: "my.rocky.agent",
     name: "Rocky Agent",
-    version: "0.2.6",
+    version: "0.2.7",
     description: "Run Dynatrace investigations with Rocky Agent, powered by Claude.",
     scopes: [
       {

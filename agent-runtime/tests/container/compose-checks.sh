@@ -104,6 +104,19 @@ if jq -e '.status == "error"' <<<"$key_tool" >/dev/null && ! grep -q 'ci-mock-an
 else
   fail "credential command: $key_tool"
 fi
+# A model and thinking level chosen for a prompt reach the model API through the real Claude Code.
+authed -X POST -H 'content-type: application/json' -d '{"text":"hello","model":"haiku","effort":"low"}' "$URL/rocky/v1/sessions/$session/prompt" >/dev/null
+for _ in $(seq 1 60); do
+  [[ "$(authed "$URL/rocky/v1/sessions/$session/snapshot" | jq -r --arg s "$session" '.status[$s].type')" == "idle" ]] && break
+  sleep 2
+done
+sleep 1
+chosen="$("${COMPOSE[@]}" logs --no-log-prefix mock-anthropic | grep '"effort":"low"' | tail -1 || true)"
+[[ "$chosen" == *haiku* ]] && pass "prompt options reached the model API ($(jq -c '{model, effort}' <<<"$chosen"))" ||
+  fail "prompt options: '${chosen:-no request with effort low}'"
+rejected="$(printf 'user = "rocky:%s"\n' "$PASSWORD" | curl -sS --max-time 20 -K - -o /dev/null -w '%{http_code}' -X POST -H 'content-type: application/json' \
+  -d '{"text":"x","model":"--dangerously-skip-permissions"}' "$URL/rocky/v1/sessions/$session/prompt")"
+[[ "$rejected" == "400" ]] && pass "a model outside the list is rejected" || fail "invalid model answered HTTP $rejected"
 authed -X DELETE "$URL/rocky/v1/sessions/$session" >/dev/null || true
 
 # RCA skill prerequisite gate inside the container (offline: no tenant access).

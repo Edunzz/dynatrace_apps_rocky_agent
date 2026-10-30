@@ -18,6 +18,8 @@ const API = "/rocky/v1";
 const SESSION_ID = /^ses_[0-9a-f-]{36}$/;
 const PERMISSION_ID = /^per_[0-9a-f]{24}$/;
 const MAX_PROMPT = 100_000;
+// The runtime checks these against its own lists; here they only have to look like a name.
+const PROMPT_OPTION = /^[a-z0-9-]+$/;
 
 function str(params: Params, name: string, pattern?: RegExp, max = 200): string {
   const value = params[name];
@@ -73,7 +75,12 @@ export const OPERATIONS = {
     const limit = optionalInt(p, "limit", 1, 500);
     return { method: "GET", path: `${session(p)}/snapshot${limit ? `?limit=${limit}` : ""}` };
   },
-  prompt: (p: Params) => ({ method: "POST", path: `${session(p)}/prompt`, body: { text: str(p, "text", undefined, MAX_PROMPT) } }),
+  prompt: (p: Params) => {
+    const body: Record<string, unknown> = { text: str(p, "text", undefined, MAX_PROMPT) };
+    if (p.model !== undefined) body.model = str(p, "model", PROMPT_OPTION, 40);
+    if (p.effort !== undefined) body.effort = str(p, "effort", PROMPT_OPTION, 40);
+    return { method: "POST", path: `${session(p)}/prompt`, body };
+  },
   abort: (p: Params) => ({ method: "POST", path: `${session(p)}/abort` }),
   todo: (p: Params) => ({ method: "GET", path: `${session(p)}/todo` }),
   artifacts: (p: Params) => ({ method: "GET", path: `${session(p)}/artifacts` }),

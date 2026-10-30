@@ -40,6 +40,12 @@ describe("runtime operation allowlist", () => {
     expect(() => buildOperation("prompt", { sessionId: SESSION.id, text: "" })).toThrow();
   });
 
+  it("passes the model and thinking level chosen for a prompt", () => {
+    expect(buildOperation("prompt", { sessionId: SESSION.id, text: "hi", model: "opus", effort: "xhigh" }).body).toEqual({ text: "hi", model: "opus", effort: "xhigh" });
+    expect(() => buildOperation("prompt", { sessionId: SESSION.id, text: "hi", model: "--dangerously-skip-permissions --x" })).toThrow();
+    expect(() => buildOperation("prompt", { sessionId: SESSION.id, text: "hi", effort: "HIGH" })).toThrow();
+  });
+
   it("maps every operation to the Rocky API", () => {
     for (const [name, params] of [
       ["health", {}],

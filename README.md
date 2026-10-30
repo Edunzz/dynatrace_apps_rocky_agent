@@ -6,6 +6,8 @@ workflow; the agent ([Claude Code](https://code.claude.com)) investigates with
 `dtctl` and the official Dynatrace skills. It works read-only by default and
 asks before it changes anything.
 
+![A Rocky Agent session: the conversation, the tasks and files of the agent, and the message box with its model and thinking-level pickers](docs/images/app-session.png)
+
 > [!IMPORTANT]
 > **Disclaimer.** Rocky Agent is a community app. It is not an official
 > Dynatrace product, it is not affiliated with Anthropic, and Dynatrace doesn't
@@ -179,6 +181,8 @@ an admin if you cannot edit it.
    sign-in*. Then select **Save connection**.
 4. Pick a suggested prompt (or write your own) and select **Let’s Rock**.
 
+   ![The start page with the suggested prompts](docs/images/app-home.png)
+
 **Day to day.** Stop with `docker compose --profile tunnel down` and start
 again with the same `up` command. Your Claude login and sessions are kept, but
 the tunnel address changes on every start: edit the connection in the app with
@@ -223,11 +227,21 @@ Deployment templates live in [`deploy/`](deploy/) and detailed guides in
 
 ## Using the app
 
+<sub>Screenshots show sample data.</sub>
+
 * **Status lights** at the top show the runtime, Claude Code, the Claude
   sign-in, Dynatrace, dtctl and the skills. The ⓘ button shows the version,
   the author and the disclaimer.
 * **New session** opens the start page with the suggested prompts: RCA, log
   value and sensitive data, alert quality and business dashboards.
+* **Model and thinking level.** The two pickers in the message box choose them
+  for your next messages, and your browser remembers the choice. *Default* uses
+  what the runtime is set to (`ROCKY_MODEL`, or your account's default). Higher
+  levels are slower and use more of your limits. On some plans **Fable bills
+  usage credits without asking**, because the runtime is not interactive.
+
+  ![The model picker in the message box](docs/images/app-model-picker.png)
+
 * **Approvals.** The agent reads freely, but any other command or file change
   waits for you in the app (**Approve once** or **Reject**). Before it changes
   anything in Dynatrace it describes the change (target, impact, rollback) and
@@ -246,6 +260,10 @@ Deployment templates live in [`deploy/`](deploy/) and detailed guides in
   ([AGENTS.md](agent-runtime/AGENTS.md) plus root-owned Claude Code managed
   settings). Before a session starts you can add your own restrictions;
   statements that would weaken the baseline are rejected.
+
+| Connect your runtime | About and disclaimer |
+|---|---|
+| ![The connection page with a saved runtime connection](docs/images/app-connect.png) | ![The About dialog with the version, author and disclaimer](docs/images/app-about.png) |
 
 ## Security
 
@@ -281,7 +299,7 @@ The runtime reads these variables from `.env` (or your secret manager):
 | `ROCKY_SERVER_PASSWORD` | `gundamjromero2026` (public) | Runtime password; one you choose needs 16+ characters |
 | `ROCKY_SERVER_USERNAME` | `rocky` | Runtime username |
 | `DTCTL_SAFETY_LEVEL` | `readwrite-mine` | `readonly`, `readwrite-mine` (only what the token's user owns) or `readwrite-all` |
-| `ROCKY_MODEL` | Claude Code default | Model alias (`sonnet`, `opus`) or full name |
+| `ROCKY_MODEL` | Claude Code default | Default model: an alias (`sonnet`, `opus`) or a full name. Users can choose another per message |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 
 **Claude credential** (one of them):

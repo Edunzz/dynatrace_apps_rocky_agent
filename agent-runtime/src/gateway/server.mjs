@@ -266,9 +266,9 @@ export async function createRuntime({
         });
       }
       case "session.prompt": {
-        const { text } = sanitizePrompt(await readJsonBody(req, config.maxBodyBytes));
+        const { text, model, effort } = sanitizePrompt(await readJsonBody(req, config.maxBodyBytes));
         const session = store.get(sessionId);
-        const message = await runner.prompt(session, text, session.policy?.overlay);
+        const message = await runner.prompt(session, text, session.policy?.overlay, { model, effort });
         return sendJson(res, 202, { accepted: true, messageID: message.info.id });
       }
       case "session.abort":

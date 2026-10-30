@@ -16,6 +16,7 @@ services:
     environment:
       MOCK_LLM_HOST: 0.0.0.0
       MOCK_LLM_PORT: "8089"
+      MOCK_LLM_LOG: "1"
     volumes:
       - ../../agent-runtime/tests/integration:/mock:ro
 

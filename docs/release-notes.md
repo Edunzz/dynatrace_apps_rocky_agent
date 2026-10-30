@@ -1,5 +1,20 @@
 # Release notes
 
+## 0.2.3 (runtime) and app 0.2.7
+
+* **Model and thinking level per message.** The message box is now one box with
+  a model picker (Fable, Opus, Sonnet, Haiku) and a thinking-level picker (Low to
+  Max) next to the send button; the choice is remembered per browser and also
+  applies to the first prompt of a new session. The runtime accepts `model` and
+  `effort` on `POST /rocky/v1/sessions/{id}/prompt`, only from its own lists, and
+  reports them in `GET /rocky/v1/status` (`agent.models`, `agent.efforts`). The
+  pickers stay hidden with an older runtime. **Fable can bill usage credits
+  without asking on some plans**; the menu says so.
+* Fix: the message box no longer covers new messages. The conversation scrolls
+  in its own area with the box below it, and follows new messages unless you
+  scrolled up to read.
+* Docs: screenshots of the app in the README.
+
 ## App 0.2.6
 
 * **Auto-approve** switch in the session header: approves the agent's tool

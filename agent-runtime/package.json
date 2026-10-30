@@ -1,6 +1,6 @@
 {
   "name": "rocky-agent-runtime",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "private": true,
   "description": "Rocky Agent runtime: Claude Code driven by a hardened gateway, with Dynatrace skills and dtctl.",
   "license": "MIT",

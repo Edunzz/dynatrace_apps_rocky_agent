@@ -1,12 +1,13 @@
 import { Button } from "@dynatrace/strato-components/buttons";
 import { Chip, MessageContainer, ProgressCircle } from "@dynatrace/strato-components/content";
-import { FormField, Label, Switch, TextArea, TextInput } from "@dynatrace/strato-components/forms";
+import { FormField, Label, Switch, TextInput } from "@dynatrace/strato-components/forms";
 import { showToast } from "@dynatrace/strato-components/notifications";
 import { DeleteIcon, DocumentIcon, DocumentStackIcon, EditIcon, FormatListNumberedIcon, PlusIcon, SaveIcon, StopIcon } from "@dynatrace/strato-icons";
 import React, { useEffect, useMemo, useState } from "react";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { useConnection } from "../app/ConnectionContext";
 import { useRuntimeData } from "../app/RuntimeDataContext";
+import { Composer } from "../components/Composer";
 import { MessageTimeline } from "../components/MessageTimeline";
 import { ConfirmModal } from "../components/modals";
 import { PasswordPrompt } from "../components/PasswordPrompt";
@@ -14,17 +15,24 @@ import { PermissionCard } from "../components/PermissionCard";
 import { SavePreviewModal } from "../components/SavePreviewModal";
 import { SessionPolicyModal } from "../components/SessionPolicyModal";
 import { useAutoApprove } from "../hooks/useAutoApprove";
+import { usePromptOptions } from "../hooks/usePromptOptions";
+import { useStickToBottom } from "../hooks/useStickToBottom";
 import { useSessionChat } from "../hooks/useSessionChat";
 import { errorMessage } from "../services/functions";
 import { type Artifact, runtimeApi, type Todo } from "../services/runtime";
+import { messageFingerprint } from "../utils/messages";
+import { offeredOptions } from "../utils/promptOptions";
 
 export function SessionPage() {
   const { sessionId = "" } = useParams();
   const navigate = useNavigate();
   const { active, connectionRef, needsPassword, loading } = useConnection();
-  const { ephemeral, saved } = useRuntimeData();
+  const { status, ephemeral, saved } = useRuntimeData();
+  const [promptOptions, setPromptOptions] = usePromptOptions();
   const api = useMemo(() => (connectionRef ? runtimeApi(connectionRef) : null), [connectionRef]);
   const chat = useSessionChat(connectionRef, sessionId);
+  const latest = chat.messages.at(-1);
+  const conversation = useStickToBottom<HTMLDivElement>(sessionId, `${chat.messages.length}|${latest ? messageFingerprint(latest) : ""}|${chat.permissions.length}`);
 
   const session = ephemeral.data?.find((s) => s.id === sessionId);
   const [title, setTitle] = useState("");
@@ -65,7 +73,7 @@ export function SessionPage() {
     setSending(true);
     setActionError(null);
     try {
-      await chat.send(text);
+      await chat.send(text, offeredOptions(promptOptions, status.data?.agent));
       setInput("");
     } catch (e) {
       setActionError(errorMessage(e));
@@ -75,7 +83,7 @@ export function SessionPage() {
   };
 
   return (
-    <div className="rk-page rk-page--wide">
+    <div className="rk-page rk-page--wide rk-session">
       {needsPassword && <PasswordPrompt />}
 
       <header className="rk-card rk-stack">
@@ -171,114 +179,94 @@ export function SessionPage() {
         )}
       </header>
 
-      <div className="rk-session-grid">
-        <section aria-label="Activity" className="rk-card rk-chat" style={{ minHeight: 240 }}>
-          <div className="rk-section-head">
-            <p className="rk-eyebrow">Activity</p>
-            {chat.busy && <ProgressCircle size="small" aria-label="Agent working" />}
-          </div>
-          {!chat.initialized && chat.polling ? <ProgressCircle aria-label="Loading conversation" /> : <MessageTimeline messages={chat.messages} busy={chat.busy} />}
-          {chat.error ? (
-            <MessageContainer variant="critical" style={{ marginTop: 12 }}>
-              <MessageContainer.Description>
-                <span>
-                  {errorMessage(chat.error)} {chat.polling ? "Retrying…" : ""}
-                </span>
-              </MessageContainer.Description>
-            </MessageContainer>
-          ) : null}
-          {(chat.stalled || (!chat.polling && chat.initialized)) && (
-            <MessageContainer variant="warning" style={{ marginTop: 12 }}>
-              <MessageContainer.Description>
-                {chat.stalled ? "No progress for 10 minutes; live updates paused." : "Live updates paused."}
-              </MessageContainer.Description>
-              <MessageContainer.Actions>
-                <Button onClick={() => chat.resume()}>Resume updates</Button>
-              </MessageContainer.Actions>
-            </MessageContainer>
-          )}
-        </section>
+      <div ref={conversation.ref} onScroll={conversation.onScroll} className="rk-session-scroll">
+        <div className="rk-session-grid">
+          <section aria-label="Activity" className="rk-card rk-chat" style={{ minHeight: 240 }}>
+            <div className="rk-section-head">
+              <p className="rk-eyebrow">Activity</p>
+              {chat.busy && <ProgressCircle size="small" aria-label="Agent working" />}
+            </div>
+            {!chat.initialized && chat.polling ? <ProgressCircle aria-label="Loading conversation" /> : <MessageTimeline messages={chat.messages} busy={chat.busy} />}
+            {chat.error ? (
+              <MessageContainer variant="critical" style={{ marginTop: 12 }}>
+                <MessageContainer.Description>
+                  <span>
+                    {errorMessage(chat.error)} {chat.polling ? "Retrying…" : ""}
+                  </span>
+                </MessageContainer.Description>
+              </MessageContainer>
+            ) : null}
+            {(chat.stalled || (!chat.polling && chat.initialized)) && (
+              <MessageContainer variant="warning" style={{ marginTop: 12 }}>
+                <MessageContainer.Description>
+                  {chat.stalled ? "No progress for 10 minutes; live updates paused." : "Live updates paused."}
+                </MessageContainer.Description>
+                <MessageContainer.Actions>
+                  <Button onClick={() => chat.resume()}>Resume updates</Button>
+                </MessageContainer.Actions>
+              </MessageContainer>
+            )}
+          </section>
 
-        <aside className="rk-rail">
-          <section aria-label="Current task status" className="rk-card rk-card--compact">
-            <div className="rk-section-head">
-              <FormatListNumberedIcon />
-              <p className="rk-eyebrow">Tasks</p>
-            </div>
-            {todos.length === 0 ? (
-              <p className="rk-small">No task list for this session.</p>
-            ) : (
-              <ul className="rk-list">
-                {todos.map((t, i) => (
-                  <li key={t.id ?? i} className="rk-task" data-status={t.status}>
-                    <span className="rk-task__mark" aria-hidden="true" />
-                    <span>
-                      <span className="rk-sr">{t.status}: </span>
-                      {t.content}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-          <section aria-label="Artifacts" className="rk-card rk-card--compact">
-            <div className="rk-section-head">
-              <DocumentStackIcon />
-              <p className="rk-eyebrow">Artifacts</p>
-            </div>
-            {artifacts.length === 0 ? (
-              <p className="rk-small">The agent has not written any files in this session yet.</p>
-            ) : (
-              <ul className="rk-list">
-                {artifacts.map((a) => (
-                  <li key={a.file} className="rk-file">
-                    <DocumentIcon />
-                    {a.file}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </aside>
+          <aside className="rk-rail">
+            <section aria-label="Current task status" className="rk-card rk-card--compact">
+              <div className="rk-section-head">
+                <FormatListNumberedIcon />
+                <p className="rk-eyebrow">Tasks</p>
+              </div>
+              {todos.length === 0 ? (
+                <p className="rk-small">No task list for this session.</p>
+              ) : (
+                <ul className="rk-list">
+                  {todos.map((t, i) => (
+                    <li key={t.id ?? i} className="rk-task" data-status={t.status}>
+                      <span className="rk-task__mark" aria-hidden="true" />
+                      <span>
+                        <span className="rk-sr">{t.status}: </span>
+                        {t.content}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+            <section aria-label="Artifacts" className="rk-card rk-card--compact">
+              <div className="rk-section-head">
+                <DocumentStackIcon />
+                <p className="rk-eyebrow">Artifacts</p>
+              </div>
+              {artifacts.length === 0 ? (
+                <p className="rk-small">The agent has not written any files in this session yet.</p>
+              ) : (
+                <ul className="rk-list">
+                  {artifacts.map((a) => (
+                    <li key={a.file} className="rk-file">
+                      <DocumentIcon />
+                      {a.file}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
+          </aside>
+        </div>
+
+        {chat.permissions.map((p) => (
+          <PermissionCard key={p.id} request={p} onReply={chat.replyPermission} />
+        ))}
       </div>
 
-      {chat.permissions.map((p) => (
-        <PermissionCard key={p.id} request={p} onReply={chat.replyPermission} />
-      ))}
-
-      <form
-        aria-label="Send a prompt"
-        className="rk-card rk-composer rk-sticky"
-        onSubmit={(e) => {
-          e.preventDefault();
-          void send();
-        }}
-      >
-        <FormField>
-          <Label>Message</Label>
-          <TextArea
-            value={input}
-            onChange={(v) => setInput(v)}
-            rows={3}
-            resize="vertical"
-            placeholder="Ask a follow-up, answer the agent, or confirm with: CONFIRM: Execute the described change"
-            onKeyDown={(e) => {
-              if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-                e.preventDefault();
-                void send();
-              }
-            }}
-          />
-        </FormField>
-        <div className="rk-composer__foot">
-          <p className="rk-small">
-            <span className="rk-kbd">Ctrl</span> + <span className="rk-kbd">Enter</span> sends.
-          </p>
-          <Button type="submit" variant="emphasized" color="primary" loading={sending} disabled={!input.trim() || sending || !connectionRef}>
-            Send ›
-          </Button>
-        </div>
-      </form>
+      <Composer
+        value={input}
+        onChange={setInput}
+        onSend={() => void send()}
+        sending={sending}
+        disabled={!connectionRef}
+        placeholder="Ask a follow-up, answer the agent, or confirm with: CONFIRM: Execute the described change"
+        agent={status.data?.agent}
+        options={promptOptions}
+        onOptionsChange={setPromptOptions}
+      />
 
       {connectionRef && (
         <SavePreviewModal

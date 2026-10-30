@@ -98,7 +98,13 @@ describe("rocky gateway: access control", () => {
     const res = await rt.request("GET", "/rocky/v1/status");
     assert.equal(res.status, 200);
     assert.equal(res.json.schemaVersion, 2);
-    assert.deepEqual(res.json.agent, { status: "ready", name: "Claude Code", version: "2.1.308" });
+    assert.deepEqual(res.json.agent, {
+      status: "ready",
+      name: "Claude Code",
+      version: "2.1.308",
+      models: ["fable", "opus", "sonnet", "haiku"],
+      efforts: ["low", "medium", "high", "xhigh", "max"],
+    });
     assert.equal(res.json.claude.status, "connected");
     assert.equal(res.json.claude.authMethod, "oauth_token");
     assert.equal(res.json.skills.status, "partial");
@@ -177,6 +183,32 @@ describe("rocky gateway: sessions and runs", () => {
     assert.equal((await rt.request("POST", `/rocky/v1/sessions/${id}/prompt`, { body: { text: "  " } })).status, 400);
     assert.equal((await rt.request("POST", `/rocky/v1/sessions/${id}/prompt`, { body: { text: "a".repeat(100_001) } })).status, 413);
     assert.equal((await rt.request("POST", "/rocky/v1/sessions/ses_00000000-0000-4000-8000-000000000000/prompt", { body: { text: "x" } })).status, 404);
+  });
+
+  it("runs a prompt with the chosen model and thinking level", async () => {
+    const id = (await rt.request("POST", "/rocky/v1/sessions", { body: {} })).json.id;
+    const body = { text: "hello", model: "opus", effort: "xhigh" };
+    assert.equal((await rt.request("POST", `/rocky/v1/sessions/${id}/prompt`, { body })).status, 202);
+    await idle(rt, id);
+    const { argv } = fakeArgs(rt).at(-1);
+    assert.equal(argv[argv.indexOf("--model") + 1], "opus");
+    assert.equal(argv[argv.indexOf("--effort") + 1], "xhigh");
+  });
+
+  it("only accepts the offered models and thinking levels", async () => {
+    const id = (await rt.request("POST", "/rocky/v1/sessions", { body: {} })).json.id;
+    const runs = fakeArgs(rt).length;
+    for (const [body, code] of [
+      [{ text: "x", model: "--dangerously-skip-permissions" }, "invalid_model"],
+      [{ text: "x", model: "gpt-5" }, "invalid_model"],
+      [{ text: "x", effort: "--model=opus" }, "invalid_effort"],
+      [{ text: "x", effort: 3 }, "invalid_effort"],
+    ]) {
+      const res = await rt.request("POST", `/rocky/v1/sessions/${id}/prompt`, { body });
+      assert.equal(res.status, 400);
+      assert.match(JSON.stringify(res.json), new RegExp(code));
+    }
+    assert.equal(fakeArgs(rt).length, runs, "a rejected prompt starts no run");
   });
 
   it("only allows the title to change on update", async () => {

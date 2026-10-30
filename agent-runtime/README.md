@@ -67,7 +67,7 @@ credential in use; the app's status bar shows it too.
 | `ANTHROPIC_API_KEY` | one credential | | Anthropic Console key |
 | `CLAUDE_CODE_USE_BEDROCK`, `AWS_REGION`, … | one credential | | Amazon Bedrock (prefer a task role) |
 | `CLAUDE_CODE_USE_VERTEX`, `CLOUD_ML_REGION`, `ANTHROPIC_VERTEX_PROJECT_ID` | one credential | | Google Vertex AI |
-| `ROCKY_MODEL` | no | Claude Code default | Alias (`sonnet`, `opus`) or full model name |
+| `ROCKY_MODEL` | no | Claude Code default | Alias (`sonnet`, `opus`) or full model name. The default: anyone with the runtime password can choose another model per prompt in the app |
 | `ROCKY_SUBPROCESS_ENV_SCRUB` | no | `false` | Claude Code's credential scrub for the commands the agent runs. Needs bubblewrap with user namespaces, which standard container runtimes (Docker's default seccomp profile, Fargate, Container Apps) block; with `true` there, every run fails. The managed rules below cover the common cases instead |
 | `ROCKY_PERMISSION_TIMEOUT_MS` | no | `900000` | An unanswered approval is denied after this time |
 | `ROCKY_RUN_TIMEOUT_MS` | no | `3600000` | Longest single run |

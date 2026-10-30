@@ -7,11 +7,13 @@ import { Code, Paragraph, Text } from "@dynatrace/strato-components/typography";
 import { FieldHint } from "./FieldHint";
 import React, { useEffect, useMemo, useState } from "react";
 import type { ConnectionRef } from "../models/connection";
+import { useRuntimeData } from "../app/RuntimeDataContext";
 import type { RuntimePolicy } from "../models/runtime";
 import { errorMessage, RockyError } from "../services/functions";
 import { policyDefaultsApi } from "../services/policyDefaults";
 import { runtimeApi } from "../services/runtime";
 import { findWeakeningStatements, MAX_OVERLAY_CHARS } from "../utils/policy";
+import { offeredOptions, readPromptOptions } from "../utils/promptOptions";
 
 export interface StartSessionModalProps {
   show: boolean;
@@ -57,6 +59,8 @@ export function StartSessionModal({ show, connection, prompt, onClose, onStarted
   const findings = useMemo(() => findWeakeningStatements(overlay), [overlay]);
   const canStart = !busy && prompt.trim().length > 0 && findings.length === 0 && overlay.length <= MAX_OVERLAY_CHARS && title.trim().length > 0;
 
+  const { status } = useRuntimeData();
+
   const start = async () => {
     setBusy(true);
     setError(null);
@@ -75,7 +79,8 @@ export function StartSessionModal({ show, connection, prompt, onClose, onStarted
         }
       }
       if (saveDefault) await policyDefaultsApi.save(overlay);
-      await api.prompt(session.id, prompt.trim());
+      // The first prompt runs with the model and thinking level last chosen in a session.
+      await api.prompt(session.id, prompt.trim(), offeredOptions(readPromptOptions(), status.data?.agent));
       onStarted(session.id);
     } catch (e) {
       const details = e instanceof RockyError && Array.isArray(e.details) ? (e.details as { line: number; reason: string }[]) : [];

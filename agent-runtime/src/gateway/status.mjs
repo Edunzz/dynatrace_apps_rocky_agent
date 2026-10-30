@@ -6,6 +6,7 @@ import { constants } from "node:fs";
 import { access, readdir, readFile, statfs } from "node:fs/promises";
 import { join } from "node:path";
 import { buildEnv } from "./runner.mjs";
+import { EFFORT_CHOICES, MODEL_CHOICES } from "./sanitize.mjs";
 
 export const STATUS_SCHEMA_VERSION = 2;
 export const LOGIN_COMMAND = "docker compose run --rm rocky-agent login";
@@ -192,6 +193,9 @@ export async function collectStatus({ config, probe, baselineSha256, startedAt, 
       status: claude.version ? "ready" : "unavailable",
       name: "Claude Code",
       version: claude.version,
+      // What the app offers in its model and thinking-level pickers.
+      models: MODEL_CHOICES,
+      efforts: EFFORT_CHOICES,
     },
     claude: {
       status: claude.status,

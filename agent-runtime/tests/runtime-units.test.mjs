@@ -116,6 +116,17 @@ describe("Claude Code command line and environment", () => {
     assert.match(next[next.indexOf("--append-system-prompt") + 1], /## User policy overlay\n\nBe brief\./);
   });
 
+  it("lets a prompt choose the model and the effort", () => {
+    const session = { started: true, claudeSessionId: "u-1" };
+    const base = { session, config, overlay: "", mcpConfigFile: "/tmp/m.json" };
+    const chosen = buildArgs({ ...base, options: { model: "opus", effort: "xhigh" } });
+    assert.equal(chosen[chosen.indexOf("--model") + 1], "opus", "wins over ROCKY_MODEL");
+    assert.equal(chosen[chosen.indexOf("--effort") + 1], "xhigh");
+    const plain = buildArgs(base);
+    assert.equal(plain[plain.indexOf("--model") + 1], "sonnet", "ROCKY_MODEL stays the default");
+    assert.ok(!plain.includes("--effort"), "no effort unless chosen");
+  });
+
   it("passes only allowlisted variables and the fixed settings", () => {
     const env = buildEnv(config);
     assert.equal(env.CLAUDE_CODE_OAUTH_TOKEN, "sk-ant-oat01-x");

@@ -147,6 +147,9 @@ export function createMockAnthropic() {
         method: req.method,
         path,
         decision,
+        // Lets tests check the model and effort chosen for a prompt.
+        model: body.model,
+        effort: body.output_config?.effort,
         messageCount: body.messages?.length ?? 0,
         tools: (body.tools ?? []).map((t) => t.name),
         // Lets tests check that the Rocky policy reached the model.

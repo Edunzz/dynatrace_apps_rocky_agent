@@ -19,6 +19,8 @@
   --rk-primary-container: var(--dt-colors-background-container-primary-default, #f0f4fa);
   --rk-hover: var(--dt-colors-background-field-neutral-default-hover, #eff0f2);
   --rk-mono: var(--dt-typography-code-base-default-family, "Roboto Mono", monospace);
+  /* The amber of the logo: the one brand color, the same on both themes. */
+  --rk-amber: #e58e3e;
   /* The conversation sits a step darker than the cards around it. */
   --rk-chat: var(--dt-colors-background-container-neutral-default, #f4f4f6);
 }
@@ -359,18 +361,161 @@
   gap: 12px;
 }
 
-.rk-sticky {
-  position: sticky;
-  bottom: 16px;
-  z-index: 2;
-  /* The second, solid shadow fills the gap below the floating composer so the
-     conversation does not show through it; shadows never add scroll overflow. */
-  box-shadow:
-    var(--dt-box-shadows-surface-floating-rest, 0 4px 16px rgba(56, 56, 66, 0.12)),
-    0 48px 0 12px var(--dt-colors-background-base-default, #fafafb);
+/* Message box: the input on top; model, thinking level and send below. */
+
+.rk-composer-box {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px 12px 10px;
+  background: var(--rk-surface);
+  border: 1px solid var(--rk-border);
+  border-radius: 14px;
+  transition: border-color 150ms ease;
 }
 
-/* Session */
+.rk-composer-box:focus-within {
+  border-color: var(--rk-amber);
+  outline: 1px solid var(--rk-amber);
+}
+
+.rk-composer-box__input {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  max-height: 240px;
+  padding: 2px 4px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  color: var(--rk-text);
+  background: transparent;
+  border: 0;
+  outline: 0;
+  resize: none;
+  field-sizing: content;
+}
+
+.rk-composer-box__input::placeholder {
+  color: var(--rk-muted);
+  opacity: 1;
+}
+
+.rk-composer-box__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.rk-composer-box__hint {
+  margin-right: 6px;
+}
+
+.rk-pick {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 6px 3px 10px;
+  font: inherit;
+  font-size: 12px;
+  line-height: 18px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--rk-text);
+  background: var(--rk-container);
+  border: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    transform 160ms var(--rk-ease-out);
+}
+
+.rk-pick svg {
+  width: 14px;
+  height: 14px;
+  color: var(--rk-muted);
+}
+
+.rk-pick:active {
+  transform: scale(0.97);
+}
+
+.rk-pick:focus-visible,
+.rk-send:focus-visible {
+  outline: 2px solid var(--rk-primary);
+  outline-offset: 2px;
+}
+
+.rk-pick__item {
+  display: flex;
+  flex-direction: column;
+}
+
+.rk-pick__hint {
+  max-width: 260px;
+  font-size: 11px;
+  line-height: 15px;
+  color: var(--rk-muted);
+  white-space: normal;
+}
+
+.rk-send {
+  appearance: none;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: #1f2547;
+  background: var(--rk-amber);
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    transform 160ms var(--rk-ease-out);
+}
+
+.rk-send svg {
+  width: 18px;
+  height: 18px;
+}
+
+.rk-send:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.rk-send:disabled {
+  color: var(--rk-muted);
+  background: var(--rk-container);
+  cursor: default;
+}
+
+/* Session: the header stays on top, the conversation scrolls in its own area
+   and the message box sits below it, so it never covers a message. */
+
+.rk-session {
+  height: 100%;
+}
+
+.rk-session-scroll {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 260px;
+  overflow-y: auto;
+}
+
+.rk-session > .rk-composer-box {
+  flex: none;
+}
 
 .rk-session-grid {
   display: grid;
@@ -381,7 +526,7 @@
 
 .rk-rail {
   position: sticky;
-  top: 16px;
+  top: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -847,8 +992,13 @@
   }
 
   .rk-tool > summary:hover,
-  .rk-side__item:hover {
+  .rk-side__item:hover,
+  .rk-pick:hover {
     background: var(--rk-hover);
+  }
+
+  .rk-send:hover:not(:disabled) {
+    background: #f7b86c;
   }
 
   .rk-side__item[aria-current="page"]:hover {
@@ -882,11 +1032,15 @@
   }
 
   .rk-prompt,
+  .rk-pick,
+  .rk-send,
   .rk-tool__chev {
     transition-property: border-color, background-color, box-shadow;
   }
 
-  .rk-prompt:active {
+  .rk-prompt:active,
+  .rk-pick:active,
+  .rk-send:active:not(:disabled) {
     transform: none;
   }
 }

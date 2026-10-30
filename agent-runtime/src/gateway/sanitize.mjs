@@ -44,6 +44,11 @@ export function sanitizeSessionUpdate(body) {
   return { title: cleanTitle(input.title, { required: true }) };
 }
 
+// What the app may choose per prompt; they become --model and --effort, so
+// nothing outside these lists reaches Claude Code's arguments.
+export const MODEL_CHOICES = ["fable", "opus", "sonnet", "haiku"];
+export const EFFORT_CHOICES = ["low", "medium", "high", "xhigh", "max"];
+
 export function sanitizePrompt(body) {
   const input = requireObject(body);
   if (typeof input.text !== "string" || input.text.trim().length === 0) {
@@ -52,7 +57,13 @@ export function sanitizePrompt(body) {
   if (input.text.length > MAX_PROMPT_CHARS) {
     throw new GatewayError(413, "prompt_too_large", `text must be at most ${MAX_PROMPT_CHARS} characters`);
   }
-  return { text: input.text };
+  if (input.model !== undefined && !MODEL_CHOICES.includes(input.model)) {
+    throw new GatewayError(400, "invalid_model", `model must be one of: ${MODEL_CHOICES.join(", ")}`);
+  }
+  if (input.effort !== undefined && !EFFORT_CHOICES.includes(input.effort)) {
+    throw new GatewayError(400, "invalid_effort", `effort must be one of: ${EFFORT_CHOICES.join(", ")}`);
+  }
+  return { text: input.text, model: input.model, effort: input.effort };
 }
 
 export function sanitizePermissionReply(body) {

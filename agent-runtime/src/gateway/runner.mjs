@@ -102,7 +102,7 @@ export function buildEnv(config, source = config.claude.sourceEnv ?? process.env
   };
 }
 
-export function buildArgs({ session, config, overlay, mcpConfigFile }) {
+export function buildArgs({ session, config, overlay, mcpConfigFile, options = {} }) {
   const args = [
     "-p",
     "--input-format",
@@ -130,7 +130,10 @@ export function buildArgs({ session, config, overlay, mcpConfigFile }) {
   ];
   const system = composeSystem(overlay);
   if (system) args.push("--append-system-prompt", system);
-  if (config.claude.model) args.push("--model", config.claude.model);
+  // A model chosen for this prompt wins over the runtime's ROCKY_MODEL.
+  const model = options.model || config.claude.model;
+  if (model) args.push("--model", model);
+  if (options.effort) args.push("--effort", options.effort);
   if (config.claude.disallowedTools.length > 0) args.push("--disallowedTools", config.claude.disallowedTools.join(","));
   args.push(...(session.started ? ["--resume", session.claudeSessionId] : ["--session-id", session.claudeSessionId]));
   return args;
@@ -190,7 +193,7 @@ export class ClaudeRunner {
     return mcpFile;
   }
 
-  async prompt(session, text, overlay) {
+  async prompt(session, text, overlay, options = {}) {
     if (this.runs.has(session.id)) {
       throw new GatewayError(409, "session_busy", "The agent is still working on this session. Wait for it or stop it first.");
     }
@@ -225,7 +228,7 @@ export class ClaudeRunner {
     this.store.save(session.id);
     try {
       const mcpFile = await this.writeRunFiles(run);
-      const args = buildArgs({ session, config: this.config, overlay, mcpConfigFile: mcpFile });
+      const args = buildArgs({ session, config: this.config, overlay, mcpConfigFile: mcpFile, options });
       run.child = this.spawnFn(this.config.claude.bin, [...this.config.claude.binArgs, ...args], {
         cwd: this.config.workspacePath,
         env: buildEnv(this.config),

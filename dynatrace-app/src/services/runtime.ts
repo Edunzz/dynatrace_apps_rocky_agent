@@ -8,6 +8,7 @@ import type {
   RuntimeStatus,
   SessionPolicy,
 } from "../models/runtime";
+import type { PromptOptions } from "../utils/promptOptions";
 import { callFunction } from "./functions";
 
 export interface SessionSnapshot {
@@ -49,7 +50,8 @@ export function runtimeApi(connection: ConnectionRef) {
     getSession: (sessionId: string) => op<OcSession>(connection, "getSession", { sessionId }),
     renameSession: (sessionId: string, title: string) => op<OcSession>(connection, "renameSession", { sessionId, title }),
     deleteSession: (sessionId: string) => op<boolean>(connection, "deleteSession", { sessionId }),
-    prompt: (sessionId: string, text: string) => op<{ accepted: boolean; messageID: string }>(connection, "prompt", { sessionId, text }),
+    prompt: (sessionId: string, text: string, options: PromptOptions = {}) =>
+      op<{ accepted: boolean; messageID: string }>(connection, "prompt", { sessionId, text, ...options }),
     abort: (sessionId: string) => op<boolean>(connection, "abort", { sessionId }),
     artifacts: (sessionId: string) => op<Artifact[]>(connection, "artifacts", { sessionId }),
     todo: (sessionId: string) => op<Todo[]>(connection, "todo", { sessionId }),

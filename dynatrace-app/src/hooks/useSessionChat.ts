@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ConnectionRef } from "../models/connection";
 import { runtimeApi } from "../services/runtime";
+import type { PromptOptions } from "../utils/promptOptions";
 import { type PollerState, SessionPoller } from "./sessionPoller";
 
 const INITIAL: PollerState = {
@@ -32,10 +33,10 @@ export function useSessionChat(connection: ConnectionRef | null, sessionId: stri
   }, [api, sessionId]);
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string, options?: PromptOptions) => {
       if (!api || !sessionId) return;
       poller.current?.markBusy();
-      await api.prompt(sessionId, text);
+      await api.prompt(sessionId, text, options);
       poller.current?.nudge();
     },
     [api, sessionId],
