@@ -1,0 +1,24 @@
+# syntax=docker/dockerfile:1.7
+#
+# Development image: the production runtime plus debugging tools and
+# development defaults. Build the production image first:
+#
+#   docker build -t rocky-agent:local --build-arg INSTALL_DRAWIO_DESKTOP=false agent-runtime
+#   docker build -t rocky-agent:dev -f agent-runtime/Dockerfile.dev agent-runtime
+#
+# Never deploy this image outside a workstation.
+
+ARG ROCKY_BASE_IMAGE=rocky-agent:local
+FROM ${ROCKY_BASE_IMAGE}
+
+USER root
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+# hadolint ignore=DL3008
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends procps less vim-tiny iproute2 \
+ && rm -rf /var/lib/apt/lists/*
+
+ENV NODE_ENV=development \
+    LOG_LEVEL=debug
+
+USER 10001:10001

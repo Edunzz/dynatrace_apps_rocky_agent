@@ -1,0 +1,47 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+**/settings/local-mock-data/secrets.json
+**/settings/local-mock-data/persistence/
+
+# Dependencies and build output
+node_modules/
+dist/
+build/
+out/
+coverage/
+*.tsbuildinfo
+
+# Dynatrace App Toolkit
+dynatrace-app/.dt-app/*
+!dynatrace-app/.dt-app/deployment.json
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+*.tfvars
+!*.tfvars.example
+.terraform.lock.hcl
+
+# Bicep / ARM build output
+deploy/azure-container-apps/bicep/*.json
+
+# Runtime artifacts
+artifacts/
+sbom*.json
+*.log
+
+# Editors and OS
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rocky-agent-config
+data:
+  # Non-secret settings only. Secrets live in the rocky-agent-secrets Secret.
+  DT_PLATFORM_URL: "https://abc12345.apps.dynatrace.com"
+  OPENCODE_SERVER_USERNAME: "opencode"
+  OPENCODE_PORT: "4096"
+  OPENCODE_PROVIDER: "anthropic"
+  OPENCODE_MODEL: "anthropic/claude-sonnet-4-5"
+  WORKSPACE_PATH: "/workspace"
+  LOG_LEVEL: "info"
+  NODE_ENV: "production"
+  DTCTL_SAFETY_LEVEL: "readwrite-mine"

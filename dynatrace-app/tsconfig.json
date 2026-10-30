@@ -1,0 +1,25 @@
+{
+  "extends": "./src/tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "types": [
+      "node",
+      "jest"
+    ],
+    "typeRoots": [
+      "./node_modules/@types",
+      "./node_modules/@dynatrace"
+    ]
+  },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/api"
+  ]
+}

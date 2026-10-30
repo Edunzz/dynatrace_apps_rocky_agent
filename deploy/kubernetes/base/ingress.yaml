@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rocky-agent
+  annotations:
+    # TLS from cert-manager (adjust the issuer) or provide the secret yourself.
+    cert-manager.io/cluster-issuer: letsencrypt
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "2m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+    # Optional: limit who can reach the runtime.
+    # nginx.ingress.kubernetes.io/whitelist-source-range: "203.0.113.0/24"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - rocky-agent.example.com
+      secretName: rocky-agent-tls
+  rules:
+    - host: rocky-agent.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: rocky-agent
+                port:
+                  name: http

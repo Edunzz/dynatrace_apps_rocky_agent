@@ -1,0 +1,337 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Rocky Agent runtime on Amazon ECS Fargate behind an HTTPS Application Load
+  Balancer. Secrets are read from AWS Secrets Manager at task start.
+
+Parameters:
+  Name:
+    Type: String
+    Default: rocky-agent
+    AllowedPattern: "^[a-z][a-z0-9-]{1,28}$"
+  Image:
+    Type: String
+    Default: ghcr.io/edunzz/dynatrace_apps_rocky_agent:0.1.0
+    Description: Image pinned by version or digest (never latest).
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  PrivateSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Subnets for the tasks (outbound HTTPS through NAT or VPC endpoints).
+  AlbSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Private subnets for an internal ALB, public subnets for an internet-facing one.
+  InternalAlb:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "true"
+  AlbIngressCidr:
+    Type: String
+    Default: 10.0.0.0/8
+    Description: CIDR allowed to reach the ALB on 443.
+  CertificateArn:
+    Type: String
+    Description: ACM certificate ARN for the HTTPS listener.
+  DtPlatformUrl:
+    Type: String
+    AllowedPattern: "^https://.+"
+    Description: Dynatrace platform URL, for example https://abc12345.apps.dynatrace.com
+  DtPlatformTokenSecretArn:
+    Type: String
+    Description: Secrets Manager ARN of the Dynatrace platform token.
+  ServerPasswordSecretArn:
+    Type: String
+    Description: Secrets Manager ARN of OPENCODE_SERVER_PASSWORD (16+ characters).
+  ModelApiKeySecretArn:
+    Type: String
+    Default: ""
+    Description: Optional Secrets Manager ARN of the model provider key.
+  ModelApiKeyEnv:
+    Type: String
+    Default: ANTHROPIC_API_KEY
+    AllowedValues: [ANTHROPIC_API_KEY, OPENAI_API_KEY, OPENCODE_API_KEY]
+  OpencodeProvider:
+    Type: String
+    Default: anthropic
+  OpencodeModel:
+    Type: String
+    Default: anthropic/claude-sonnet-4-5
+  EnableBedrock:
+    Type: String
+    AllowedValues: ["true", "false"]
+    Default: "false"
+  Cpu:
+    Type: String
+    Default: "1024"
+    AllowedValues: ["1024", "2048", "4096"]
+  Memory:
+    Type: String
+    Default: "2048"
+    AllowedValues: ["2048", "4096", "8192", "16384"]
+  AutoscalingMaxCapacity:
+    Type: Number
+    Default: 1
+    MinValue: 1
+    MaxValue: 10
+    Description: Sessions are local to each task; keep 1 unless routing is session-aware.
+
+Conditions:
+  HasModelKey: !Not [!Equals [!Ref ModelApiKeySecretArn, ""]]
+  BedrockEnabled: !Equals [!Ref EnableBedrock, "true"]
+  IsInternal: !Equals [!Ref InternalAlb, "true"]
+  AutoscalingEnabled: !Not [!Equals [!Ref AutoscalingMaxCapacity, 1]]
+
+Resources:
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /ecs/${Name}
+      RetentionInDays: 30
+
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+      Policies:
+        - PolicyName: read-runtime-secrets
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: secretsmanager:GetSecretValue
+                Resource: !If
+                  - HasModelKey
+                  - [!Ref DtPlatformTokenSecretArn, !Ref ServerPasswordSecretArn, !Ref ModelApiKeySecretArn]
+                  - [!Ref DtPlatformTokenSecretArn, !Ref ServerPasswordSecretArn]
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: ecs-tasks.amazonaws.com }
+            Action: sts:AssumeRole
+      Policies: !If
+        - BedrockEnabled
+        - - PolicyName: invoke-bedrock-models
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+                  Resource: "*"
+        - !Ref AWS::NoValue
+
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Rocky Agent load balancer
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref AlbIngressCidr
+          Description: HTTPS from allowed range
+
+  ServiceSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Rocky Agent tasks
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 4096
+          ToPort: 4096
+          SourceSecurityGroupId: !Ref AlbSecurityGroup
+          Description: Gateway port from the ALB only
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS to Dynatrace, the model provider and package registries
+
+  AlbToServiceEgress:
+    Type: AWS::EC2::SecurityGroupEgress
+    Properties:
+      GroupId: !Ref AlbSecurityGroup
+      IpProtocol: tcp
+      FromPort: 4096
+      ToPort: 4096
+      DestinationSecurityGroupId: !Ref ServiceSecurityGroup
+      Description: To Rocky tasks
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Ref Name
+      Type: application
+      Scheme: !If [IsInternal, internal, internet-facing]
+      Subnets: !Ref AlbSubnetIds
+      SecurityGroups: [!Ref AlbSecurityGroup]
+      LoadBalancerAttributes:
+        - Key: routing.http.drop_invalid_header_fields.enabled
+          Value: "true"
+        - Key: idle_timeout.timeout_seconds
+          Value: "120"
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Ref Name
+      VpcId: !Ref VpcId
+      Port: 4096
+      Protocol: HTTP
+      TargetType: ip
+      HealthCheckPath: /rocky/v1/livez
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: "200"
+
+  HttpsListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 443
+      Protocol: HTTPS
+      SslPolicy: ELBSecurityPolicy-TLS13-1-2-2021-06
+      Certificates:
+        - CertificateArn: !Ref CertificateArn
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref Name
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref Name
+      RequiresCompatibilities: [FARGATE]
+      NetworkMode: awsvpc
+      Cpu: !Ref Cpu
+      Memory: !Ref Memory
+      ExecutionRoleArn: !GetAtt ExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      RuntimePlatform:
+        OperatingSystemFamily: LINUX
+        CpuArchitecture: X86_64
+      Volumes:
+        - Name: workspace
+        - Name: home
+        - Name: tmp
+      ContainerDefinitions:
+        - Name: rocky-agent
+          Image: !Ref Image
+          Essential: true
+          ReadonlyRootFilesystem: true
+          User: "10001:10001"
+          PortMappings:
+            - ContainerPort: 4096
+              Protocol: tcp
+          Environment:
+            - { Name: DT_PLATFORM_URL, Value: !Ref DtPlatformUrl }
+            - { Name: OPENCODE_SERVER_USERNAME, Value: opencode }
+            - { Name: OPENCODE_PORT, Value: "4096" }
+            - { Name: OPENCODE_PROVIDER, Value: !Ref OpencodeProvider }
+            - { Name: OPENCODE_MODEL, Value: !Ref OpencodeModel }
+            - { Name: AWS_REGION, Value: !Ref AWS::Region }
+            - { Name: NODE_ENV, Value: production }
+            - { Name: LOG_LEVEL, Value: info }
+            - { Name: WORKSPACE_PATH, Value: /workspace }
+          Secrets: !If
+            - HasModelKey
+            - - { Name: DT_PLATFORM_TOKEN, ValueFrom: !Ref DtPlatformTokenSecretArn }
+              - { Name: OPENCODE_SERVER_PASSWORD, ValueFrom: !Ref ServerPasswordSecretArn }
+              - { Name: !Ref ModelApiKeyEnv, ValueFrom: !Ref ModelApiKeySecretArn }
+            - - { Name: DT_PLATFORM_TOKEN, ValueFrom: !Ref DtPlatformTokenSecretArn }
+              - { Name: OPENCODE_SERVER_PASSWORD, ValueFrom: !Ref ServerPasswordSecretArn }
+          MountPoints:
+            - { SourceVolume: workspace, ContainerPath: /workspace, ReadOnly: false }
+            - { SourceVolume: home, ContainerPath: /home/rocky, ReadOnly: false }
+            - { SourceVolume: tmp, ContainerPath: /tmp, ReadOnly: false }
+          LinuxParameters:
+            Capabilities:
+              Drop: [ALL]
+          HealthCheck:
+            Command: ["CMD", "/opt/rocky/healthcheck.sh"]
+            Interval: 30
+            Timeout: 10
+            Retries: 3
+            StartPeriod: 90
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: rocky
+
+  Service:
+    Type: AWS::ECS::Service
+    DependsOn: HttpsListener
+    Properties:
+      ServiceName: !Ref Name
+      Cluster: !Ref Cluster
+      TaskDefinition: !Ref TaskDefinition
+      LaunchType: FARGATE
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 120
+      DeploymentConfiguration:
+        MinimumHealthyPercent: 0
+        MaximumPercent: 100
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: DISABLED
+          Subnets: !Ref PrivateSubnetIds
+          SecurityGroups: [!Ref ServiceSecurityGroup]
+      LoadBalancers:
+        - ContainerName: rocky-agent
+          ContainerPort: 4096
+          TargetGroupArn: !Ref TargetGroup
+
+  ScalableTarget:
+    Type: AWS::ApplicationAutoScaling::ScalableTarget
+    Condition: AutoscalingEnabled
+    Properties:
+      ServiceNamespace: ecs
+      ResourceId: !Sub service/${Cluster}/${Service.Name}
+      ScalableDimension: ecs:service:DesiredCount
+      MinCapacity: 1
+      MaxCapacity: !Ref AutoscalingMaxCapacity
+
+  CpuScalingPolicy:
+    Type: AWS::ApplicationAutoScaling::ScalingPolicy
+    Condition: AutoscalingEnabled
+    Properties:
+      PolicyName: !Sub ${Name}-cpu
+      PolicyType: TargetTrackingScaling
+      ScalingTargetId: !Ref ScalableTarget
+      TargetTrackingScalingPolicyConfiguration:
+        TargetValue: 75
+        PredefinedMetricSpecification:
+          PredefinedMetricType: ECSServiceAverageCPUUtilization
+
+Outputs:
+  LoadBalancerDnsName:
+    Description: Point your runtime host name here; the certificate must match that name.
+    Value: !GetAtt LoadBalancer.DNSName
+  ServiceName:
+    Value: !GetAtt Service.Name

@@ -1,0 +1,115 @@
+name: release
+
+# Publishes a versioned release when a tag such as v0.1.0 is pushed:
+#   * multi-architecture runtime image on GHCR (never tagged latest)
+#   * SLSA provenance and SBOM attestations from BuildKit
+#   * keyless Sigstore signature of the image digest
+#   * SPDX SBOM and the built Dynatrace App attached to the GitHub release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/edunzz/dynatrace_apps_rocky_agent
+
+jobs:
+  image:
+    name: Build, sign and publish the runtime image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.IMAGE }}
+          flavor: latest=false
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=sha,format=long
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: agent-runtime
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            ROCKY_VERSION=${{ github.ref_name }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign the image digest (keyless)
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+  release:
+    name: GitHub release
+    needs: image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "24"
+      - name: Build the Dynatrace App
+        working-directory: dynatrace-app
+        run: |
+          npm ci --no-audit --no-fund
+          npx dt-app build --non-interactive
+          tar -czf ../rocky-agent-app-${GITHUB_REF_NAME}.tar.gz -C dist .
+      - name: SBOM of the published image
+        uses: anchore/sbom-action@66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c # v0.24.3
+        with:
+          image: ${{ env.IMAGE }}@${{ needs.image.outputs.digest }}
+          format: spdx-json
+          output-file: rocky-agent-runtime-${{ github.ref_name }}.spdx.json
+          upload-artifact: false
+      - uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+        with:
+          generate_release_notes: true
+          body: |
+            Runtime image: `${{ env.IMAGE }}@${{ needs.image.outputs.digest }}`
+
+            Verify the signature:
+            ```bash
+            cosign verify ${{ env.IMAGE }}@${{ needs.image.outputs.digest }} \
+              --certificate-identity-regexp 'https://github.com/Edunzz/dynatrace_apps_rocky_agent/.github/workflows/release.yml@.*' \
+              --certificate-oidc-issuer https://token.actions.githubusercontent.com
+            ```
+          files: |
+            rocky-agent-app-${{ github.ref_name }}.tar.gz
+            rocky-agent-runtime-${{ github.ref_name }}.spdx.json

@@ -1,0 +1,27 @@
+# gitleaks configuration: default rules plus a narrow allowlist for values that
+# are documented as non-secret (the development default password and CI
+# placeholders). Never add real credentials here.
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented non-secret placeholders"
+regexes = [
+  '''edunzzxgundam79''',
+  '''ci-integration-password-0123''',
+  '''ci-placeholder-not-a-real-token''',
+  '''mock-key-not-secret''',
+  '''test-password-0123456789''',
+  '''internal-upstream-password-abcdef''',
+  '''e2e-password-0123456789''',
+  '''a-unique-password-123''',
+  # Public ID of the Azure built-in role "Key Vault Secrets User".
+  '''4633458b-17de-408a-b874-0445c86b69e6''',
+]
+# Test fixtures contain synthetic credentials on purpose (they verify redaction).
+paths = [
+  '''agent-runtime/tests/.*''',
+  '''dynatrace-app/tests/.*''',
+  '''dynatrace-app/src/.*\.test\.tsx?''',
+]

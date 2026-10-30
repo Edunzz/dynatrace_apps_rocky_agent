@@ -1,0 +1,36 @@
+# Local development: builds and runs the Rocky Agent runtime on 127.0.0.1:4096.
+#
+#   cp .env.example .env   # fill in DT_PLATFORM_TOKEN and a model provider
+#   docker compose up --build
+#
+# The port is bound to loopback only. Put an HTTPS reverse proxy in front of
+# the runtime before anything else can reach it (see docs/deployment/docker.md).
+
+name: rocky-agent
+
+services:
+  rocky-agent:
+    build:
+      context: ./agent-runtime
+      args:
+        INSTALL_DRAWIO_DESKTOP: "true"
+    image: rocky-agent:local
+    env_file: .env
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+    ports:
+      - "127.0.0.1:4096:4096"
+    volumes:
+      - rocky-workspace:/workspace
+    read_only: true
+    tmpfs:
+      - /tmp:size=512m,mode=1777
+      - /home/rocky:size=1g,uid=10001,gid=10001,mode=0700
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    restart: unless-stopped
+
+volumes:
+  rocky-workspace: {}

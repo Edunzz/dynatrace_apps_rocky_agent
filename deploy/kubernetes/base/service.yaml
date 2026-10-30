@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rocky-agent
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: rocky-agent
+  ports:
+    - name: http
+      port: 4096
+      targetPort: http
+      protocol: TCP
