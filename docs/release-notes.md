@@ -12,8 +12,10 @@
   only deploys settings schemas from `src/settings/schemas/`, and the
   `runtime-connections` schema was in `settings/schemas/`, so it never reached
   the tenant and every save returned 404. The schema moved, and it also gets
-  the two fixes the tenant requires to install it (`ordered`, and the
-  `capabilities` list can no longer be null).
+  the fixes the tenant requires to install it: `ordered`, the `capabilities`
+  list can no longer be null, and the runtime URL pattern uses plain
+  alternatives without groups (the tenant rejects greedy quantifiers inside
+  capture groups). It also accepts `http://[::1]` like the connection form.
 * App 0.2.2, fix: error and warning boxes showed no text. Strato's
   `MessageContainer` needs its text in `MessageContainer.Description`; a test
   now checks every use.
