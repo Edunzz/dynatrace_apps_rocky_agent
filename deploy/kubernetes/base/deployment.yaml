@@ -27,7 +27,7 @@ spec:
       containers:
         - name: rocky-agent
           # Pin by digest in production: docker.io/edunzz/rocky-agent@sha256:<digest>
-          image: docker.io/edunzz/rocky-agent:0.2.1
+          image: docker.io/edunzz/rocky-agent:0.2.2
           imagePullPolicy: IfNotPresent
           ports:
             - name: http

@@ -225,7 +225,7 @@ docker run --rm --name rocky-agent -p 127.0.0.1:4096:4096 --env-file rocky.env \
   -v rocky-workspace:/workspace -v rocky-home:/home/rocky \
   --read-only --tmpfs /tmp:size=512m \
   --cap-drop ALL --security-opt no-new-privileges:true \
-  docker.io/edunzz/rocky-agent:0.2.1
+  docker.io/edunzz/rocky-agent:0.2.2
 ```
 
 Then put an HTTPS reverse proxy in front of it and connect the app to its URL.

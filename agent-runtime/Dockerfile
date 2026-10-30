@@ -62,7 +62,7 @@ RUN mkdir -p /out/drawio \
 FROM ${NODE_IMAGE} AS runtime
 
 ARG INSTALL_DRAWIO_DESKTOP=true
-ARG ROCKY_VERSION=0.2.1
+ARG ROCKY_VERSION=0.2.2
 
 LABEL org.opencontainers.image.title="Rocky Agent runtime" \
       org.opencontainers.image.description="Claude Code runtime with Dynatrace skills, dtctl and a hardened gateway" \

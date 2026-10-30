@@ -5,7 +5,7 @@
 // placeholders below; this file contains no secret values.
 /* eslint-disable noSecrets/no-secrets */
 
-export const IMAGE = "docker.io/edunzz/rocky-agent:0.2.1";
+export const IMAGE = "docker.io/edunzz/rocky-agent:0.2.2";
 export const REPO = "https://github.com/Edunzz/dynatrace_apps_rocky_agent";
 
 export type GuideLanguage = "bash" | "yaml" | "json";

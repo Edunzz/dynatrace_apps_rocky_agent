@@ -98,6 +98,28 @@ out="$(docker run --rm -e NODE_ENV=production -e DT_PLATFORM_URL=https://rocky-c
 grep -q 'at least 16 characters' <<<"$out" && grep -q 'refusing to start' <<<"$out" \
   && pass "short password rejected in production" || fail "short password was not rejected in production"
 
+# A second start with the same home volume must replace the read-only skill copies.
+vol="rocky-ci-home-$$"
+docker volume create "$vol" >/dev/null
+for _ in 1 2; do
+  cid="$(docker run -d --read-only --tmpfs /tmp:size=256m,mode=1777 -v "$vol:/home/rocky" \
+    --tmpfs /workspace:uid=10001,gid=10001,mode=0700 -e NODE_ENV=test -e DT_PLATFORM_URL=https://rocky-ci.invalid \
+    -e DT_PLATFORM_TOKEN=ci-placeholder-not-a-real-token -e ROCKY_SERVER_PASSWORD=ci-integration-password-0123 "$IMAGE")"
+  for _ in $(seq 1 60); do
+    docker logs "$cid" 2>&1 | grep -q 'skills installed' && break
+    [[ "$(docker inspect -f '{{.State.Running}}' "$cid")" == true ]] || break
+    sleep 2
+  done
+  out="$(docker logs "$cid" 2>&1)"
+  docker rm -f "$cid" >/dev/null
+done
+docker volume rm "$vol" >/dev/null
+if grep -q 'skills installed' <<<"$out" && ! grep -q 'Permission denied' <<<"$out"; then
+  pass "second start with the same home volume refreshes the skills"
+else
+  fail "second start with the same home volume: $(grep -m3 -E 'Permission denied|error' <<<"$out")"
+fi
+
 if ((failures > 0)); then
   printf '%d image check(s) failed\n' "$failures"
   exit 1

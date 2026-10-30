@@ -1,5 +1,14 @@
 # Release notes
 
+## 0.2.2
+
+* Fix: the runtime failed to start a second time with a persistent home volume
+  (`docker compose up` after a restart or a new image). The skill copies kept
+  the image's read-only permissions and the refresh could not delete them
+  (`rm: cannot remove ... Permission denied`); it now makes the old copy
+  writable before replacing it, which also repairs volumes already affected.
+* Image checks start the image twice with the same home volume.
+
 ## 0.2.1
 
 * **Public default password `gundamjromero2026`.** Without

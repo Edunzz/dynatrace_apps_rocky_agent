@@ -8,7 +8,7 @@ internal_alb       = true
 alb_ingress_cidrs  = ["10.0.0.0/8"]
 certificate_arn    = "arn:aws:acm:eu-west-1:123456789012:certificate/00000000-0000-0000-0000-000000000000"
 
-image           = "docker.io/edunzz/rocky-agent:0.2.1"
+image           = "docker.io/edunzz/rocky-agent:0.2.2"
 dt_platform_url = "https://abc12345.apps.dynatrace.com"
 
 dt_platform_token_secret_arn = "arn:aws:secretsmanager:eu-west-1:123456789012:secret:rocky-agent/dt-platform-token-AbCdEf"

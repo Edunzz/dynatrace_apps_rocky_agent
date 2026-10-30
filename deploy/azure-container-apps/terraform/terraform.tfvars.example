@@ -3,6 +3,6 @@ subscription_id     = "00000000-0000-0000-0000-000000000000"
 resource_group_name = "rg-rocky-agent"
 key_vault_name      = "kv-rocky-agent"
 dt_platform_url     = "https://abc12345.apps.dynatrace.com"
-image               = "docker.io/edunzz/rocky-agent:0.2.1"
+image               = "docker.io/edunzz/rocky-agent:0.2.2"
 external_ingress    = true
 allowed_ip_ranges   = []

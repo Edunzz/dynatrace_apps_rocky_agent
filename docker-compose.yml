@@ -15,7 +15,7 @@ name: rocky-agent
 
 services:
   rocky-agent:
-    image: ${ROCKY_IMAGE:-docker.io/edunzz/rocky-agent:0.2.1}
+    image: ${ROCKY_IMAGE:-docker.io/edunzz/rocky-agent:0.2.2}
     env_file: .env
     environment:
       # Production rules by default: a unique password of 16+ characters is required.

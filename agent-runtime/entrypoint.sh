@@ -93,8 +93,12 @@ unset DT_PLATFORM_TOKEN
 # persisted volume always carries the versions baked into this image.
 while IFS= read -r name; do
   [[ -n "$name" && -d "$ROCKY_HOME/skills/$name" ]] || continue
-  rm -rf "${CLAUDE_CONFIG_DIR:?}/skills/$name"
-  cp -R "$ROCKY_HOME/skills/$name" "$CLAUDE_CONFIG_DIR/skills/$name"
+  dest="${CLAUDE_CONFIG_DIR:?}/skills/$name"
+  # Copies keep the image's read-only modes: make the previous copy writable so
+  # it can be replaced on the next start.
+  [[ -e "$dest" ]] && chmod -R u+w "$dest"
+  rm -rf "$dest"
+  cp -R "$ROCKY_HOME/skills/$name" "$dest"
 done < <(jq -r '.official.skills[], .custom[].name, .drawio.name' "$ROCKY_SKILLS_MANIFEST")
 log info "skills installed: $(jq -r '[(.official.skills | length), (.custom | length), 1] | add' "$ROCKY_SKILLS_MANIFEST")"
 
