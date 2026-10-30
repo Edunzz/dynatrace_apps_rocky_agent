@@ -6,8 +6,6 @@ dashboard from a Dynatrace app; the agent investigates with `dtctl` and the
 official Dynatrace skills, works read-only by default and asks before it
 changes anything.
 
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Edunzz/dynatrace_apps_rocky_agent)
-
 ## Getting started
 
 You will install the **app** in your Dynatrace environment (from GitHub
@@ -36,7 +34,10 @@ for a service user ([details](docs/dynatrace-setup.md)).
 
 ### Step 2 — Install the app in Dynatrace
 
-1. Click **Open in GitHub Codespaces** above.
+1. Click this button:
+
+   [![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/Edunzz/dynatrace_apps_rocky_agent)
+
 2. On the creation page, fill in the two recommended secrets and select **Create codespace**:
 
    | Secret | Value |
